@@ -46,4 +46,8 @@ jobs:
             exit 0
           fi
 
-          gh workflow run openwrt-builder.yml             --repo hellomrli/my-ImmortalWrt             --ref main             -f sources=all             -f branches=all
+          gh workflow run openwrt-builder.yml \
+            --repo hellomrli/my-ImmortalWrt \
+            --ref main \
+            -f sources=all \
+            -f branches=all
