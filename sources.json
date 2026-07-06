@@ -1,0 +1,26 @@
+[
+  {
+    "name": "luci-app-lucky",
+    "path": "luci-app-lucky",
+    "repo": "https://github.com/gdy666/luci-app-lucky.git",
+    "description": "Lucky network utility / port forwarding LuCI app"
+  },
+  {
+    "name": "luci-app-watchdog",
+    "path": "luci-app-watchdog",
+    "repo": "https://github.com/sirpdboy/luci-app-watchdog.git",
+    "description": "LuCI login / SSH failed-login watchdog"
+  },
+  {
+    "name": "OpenClash",
+    "path": "openclash",
+    "repo": "https://github.com/vernesong/OpenClash.git",
+    "description": "OpenClash LuCI app"
+  },
+  {
+    "name": "luci-app-daed",
+    "path": "dae",
+    "repo": "https://github.com/QiuSimons/luci-app-daed.git",
+    "description": "Daed and luci-app-daed packages"
+  }
+]
