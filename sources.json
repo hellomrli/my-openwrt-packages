@@ -22,5 +22,41 @@
     "path": "dae",
     "repo": "https://github.com/QiuSimons/luci-app-daed.git",
     "description": "Daed and luci-app-daed packages"
+  },
+  {
+    "name": "luci-app-adguardhome",
+    "path": "luci-app-adguardhome",
+    "repo": "https://github.com/rufengsuixing/luci-app-adguardhome.git",
+    "description": "AdGuard Home LuCI app"
+  },
+  {
+    "name": "luci-app-mosdns",
+    "path": "luci-app-mosdns",
+    "repo": "https://github.com/sbwml/luci-app-mosdns.git",
+    "description": "MosDNS LuCI app and packages"
+  },
+  {
+    "name": "openwrt-passwall",
+    "path": "openwrt-passwall",
+    "repo": "https://github.com/Openwrt-Passwall/openwrt-passwall.git",
+    "description": "Passwall LuCI app and dependencies"
+  },
+  {
+    "name": "openwrt-passwall2",
+    "path": "openwrt-passwall2",
+    "repo": "https://github.com/Openwrt-Passwall/openwrt-passwall2.git",
+    "description": "Passwall2 LuCI app and dependencies"
+  },
+  {
+    "name": "luci-app-vlmcsd",
+    "path": "luci-app-vlmcsd",
+    "repo": "https://github.com/mchome/luci-app-vlmcsd.git",
+    "description": "vlmcsd LuCI app"
+  },
+  {
+    "name": "luci-app-smartdns",
+    "path": "luci-app-smartdns",
+    "repo": "https://github.com/pymumu/luci-app-smartdns.git",
+    "description": "SmartDNS LuCI app"
   }
 ]

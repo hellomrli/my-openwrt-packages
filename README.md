@@ -4,6 +4,8 @@ Personal OpenWrt package mirror used by [`hellomrli/my-ImmortalWrt`](https://git
 
 This repository keeps a small, curated set of packages instead of importing a large third-party feed.
 
+Extra packages marked `not selected yet` are mirrored only. They are not compiled into `my-ImmortalWrt` until the firmware `.config` explicitly selects them.
+
 ## Packages
 
 | Package | Upstream | Local path | Used by |
@@ -12,6 +14,12 @@ This repository keeps a small, curated set of packages instead of importing a la
 | luci-app-watchdog | https://github.com/sirpdboy/luci-app-watchdog | `luci-app-watchdog` | all images |
 | OpenClash | https://github.com/vernesong/OpenClash | `openclash` | `immortalwrt/master`, `immortalwrt/openwrt-25.12` |
 | luci-app-daed / daed | https://github.com/QiuSimons/luci-app-daed | `dae` | `immortalwrt-daed/master` |
+| luci-app-adguardhome | https://github.com/rufengsuixing/luci-app-adguardhome | `luci-app-adguardhome` | not selected yet |
+| luci-app-mosdns | https://github.com/sbwml/luci-app-mosdns | `luci-app-mosdns` | not selected yet |
+| openwrt-passwall | https://github.com/Openwrt-Passwall/openwrt-passwall | `openwrt-passwall` | not selected yet |
+| openwrt-passwall2 | https://github.com/Openwrt-Passwall/openwrt-passwall2 | `openwrt-passwall2` | not selected yet |
+| luci-app-vlmcsd | https://github.com/mchome/luci-app-vlmcsd | `luci-app-vlmcsd` | not selected yet |
+| luci-app-smartdns | https://github.com/pymumu/luci-app-smartdns | `luci-app-smartdns` | not selected yet |
 
 ## Sync
 
