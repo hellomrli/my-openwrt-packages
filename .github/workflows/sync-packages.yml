@@ -35,19 +35,3 @@ jobs:
           git commit -m "sync: update OpenWrt packages"
           git push
           echo "changed=true" >> "$GITHUB_OUTPUT"
-
-      - name: Trigger firmware build
-        if: steps.commit.outputs.changed == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.FIRMWARE_REPO_TOKEN }}
-        run: |
-          if [ -z "$GH_TOKEN" ]; then
-            echo "FIRMWARE_REPO_TOKEN is not configured; skip cross-repo build trigger."
-            exit 0
-          fi
-
-          gh workflow run openwrt-builder.yml \
-            --repo hellomrli/my-ImmortalWrt \
-            --ref main \
-            -f sources=all \
-            -f branches=all

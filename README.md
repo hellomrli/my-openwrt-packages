@@ -56,9 +56,8 @@ CONFIG_PACKAGE_luci-app-lucky=y
 CONFIG_PACKAGE_luci-app-watchdog=y
 ```
 
-## Optional firmware build trigger
+## Firmware build policy
 
-To trigger `hellomrli/my-ImmortalWrt` immediately after package updates, add a repository secret named `FIRMWARE_REPO_TOKEN`.
+Package sync only updates this mirror. It does **not** trigger `hellomrli/my-ImmortalWrt` firmware builds by itself.
 
-The token needs permission to run workflows in `hellomrli/my-ImmortalWrt`.
-If the secret is not configured, packages will still sync automatically; the firmware repository can monitor this repository from its own update checker.
+Firmware builds clone this repository at build time, so manual builds or ImmortalWrt-upstream-triggered builds automatically use the latest mirrored packages available at that moment.
