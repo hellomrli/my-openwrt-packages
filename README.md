@@ -93,3 +93,8 @@ CONFIG_PACKAGE_luci-app-watchdog=y
 python3 -m py_compile scripts/sync-packages.py
 python3 -m json.tool sources.json >/tmp/sources.json.check
 ```
+## Local packages
+
+- `adguardhome-dual`: dual AdGuardHome runtime for dnsmasq + daed DNS routing. It installs ADH Core v0.107.77 from the official AdGuardHome release and provides `adh-direct` / `adh-proxy` procd services.
+- `golang`: OpenWrt official `packages/lang/golang` packaging with Go 1.26.5 pinned to the official Go source release (`go.dev/dl` / `dl.google.com/go`).
+

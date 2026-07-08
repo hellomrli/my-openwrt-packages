@@ -1,0 +1,20 @@
+#!/bin/sh /etc/rc.common
+USE_PROCD=1
+START=94
+STOP=10
+BIN=/usr/bin/AdGuardHome/AdGuardHome-direct
+CONF=/etc/AdGuardHome-direct.yaml
+WORK=/usr/bin/AdGuardHome/direct
+start_service() {
+  [ -x "$BIN" ] || return 1
+  mkdir -p "$WORK"
+  procd_open_instance
+  procd_set_param command "$BIN" -c "$CONF" -w "$WORK" --web-addr 192.168.50.1:50080 --no-check-update --no-permcheck
+  procd_set_param respawn 3600 5 5
+  procd_set_param limits nofile="65535 65535"
+  procd_set_param stdout 1
+  procd_set_param stderr 1
+  procd_set_param file "$CONF"
+  procd_close_instance
+}
+reload_service() { stop; start; }
