@@ -1,12 +1,12 @@
 # Synced Sources
 
-Last sync: `2026-07-18 03:38:07 UTC`
+Last sync: `2026-07-18 08:12:01 UTC`
 
 | Package | Path | Branch | Commit | Upstream |
 |---------|------|--------|--------|----------|
 | luci-app-lucky | `luci-app-lucky` | `main` | `c1730565c6df` | https://github.com/gdy666/luci-app-lucky.git |
 | luci-app-watchdog | `luci-app-watchdog` | `main` | `4c0ad625c738` | https://github.com/sirpdboy/luci-app-watchdog.git |
-| OpenClash | `openclash` | `master` | `1c8e8cb8eaad` | https://github.com/vernesong/OpenClash.git |
+| OpenClash | `openclash` | `master` | `a9e5d98cd664` | https://github.com/vernesong/OpenClash.git |
 | luci-app-daed | `dae` | `kix` | `9511862b8cf8` | https://github.com/QiuSimons/luci-app-daed.git |
 | luci-app-adguardhome | `luci-app-adguardhome` | `master` | `37fdf502b993` | https://github.com/rufengsuixing/luci-app-adguardhome.git |
 | luci-app-mosdns | `luci-app-mosdns` | `v5` | `e2d0877f0ce2` | https://github.com/sbwml/luci-app-mosdns.git |
