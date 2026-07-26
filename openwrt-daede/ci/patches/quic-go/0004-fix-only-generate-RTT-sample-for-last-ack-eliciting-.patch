@@ -1,0 +1,89 @@
+From e0d255ff807c0cdfa18e564b4db8967fd033643e Mon Sep 17 00:00:00 2001
+From: kix <olices@9up.in>
+Date: Wed, 29 Apr 2026 00:16:14 +0800
+Subject: [PATCH 4/4] fix: only generate RTT sample for last ack-eliciting
+ packet
+
+Cherry-picked from upstream quic-go/quic-go@96b8144b.
+Avoids inflated RTT measurements when packets are buffered
+during the handshake, now working across packet number spaces.
+
+Adapted from monotime.Time to time.Time for fork compatibility.
+---
+ internal/ackhandler/sent_packet_handler.go | 13 ++++++++++---
+ send_stream.go                             | 13 +++----------
+ 2 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/internal/ackhandler/sent_packet_handler.go b/internal/ackhandler/sent_packet_handler.go
+index 70ec7c3e..3f7b4e64 100644
+--- a/internal/ackhandler/sent_packet_handler.go
++++ b/internal/ackhandler/sent_packet_handler.go
+@@ -110,6 +110,9 @@ type sentPacketHandler struct {
+ 
+ 	tracer *logging.ConnectionTracer
+ 	logger utils.Logger
++
++	// send time of the largest acknowledged packet, across all packet number spaces
++	largestAckedTime time.Time
+ }
+ 
+ var (
+@@ -350,6 +353,7 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
+ 	cc := h.getCongestionControl()
+ 
+ 	// update the RTT, if the largest acked is newly acknowledged
++	// and it's the last ack-eliciting packet that was sent, across all spaces
+ 	if len(ackedPackets) > 0 {
+ 		if p := ackedPackets[len(ackedPackets)-1]; p.PacketNumber == ack.LargestAcked() {
+ 			// don't use the ack delay for Initial and Handshake packets
+@@ -357,9 +361,12 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
+ 			if encLevel == protocol.Encryption1RTT {
+ 				ackDelay = min(ack.DelayTime, h.rttStats.MaxAckDelay())
+ 			}
+-			h.rttStats.UpdateRTT(rcvTime.Sub(p.SendTime), ackDelay)
+-			if h.logger.Debug() {
+-				h.logger.Debugf("\tupdated RTT: %s (σ: %s)", h.rttStats.SmoothedRTT(), h.rttStats.MeanDeviation())
++			if h.largestAckedTime.IsZero() || !p.SendTime.Before(h.largestAckedTime) {
++				h.rttStats.UpdateRTT(rcvTime.Sub(p.SendTime), ackDelay)
++				if h.logger.Debug() {
++					h.logger.Debugf("\tupdated RTT: %s (σ: %s)", h.rttStats.SmoothedRTT(), h.rttStats.MeanDeviation())
++				}
++				h.largestAckedTime = p.SendTime
+ 			}
+ 			cc.MaybeExitSlowStart()
+ 		}
+diff --git a/send_stream.go b/send_stream.go
+index 1a3a62fa..c9212673 100644
+--- a/send_stream.go
++++ b/send_stream.go
+@@ -531,8 +531,8 @@ func (s *sendStream) SetWriteDeadline(t time.Time) error {
+ // The peer will NOT be informed about this: the stream is closed without sending a FIN or RST.
+ func (s *sendStream) closeForShutdown(err error) {
+ 	s.mutex.Lock()
+-	if s.shutdownErr == nil && !s.finishedWriting {
+-		s.shutdownErr = err
++	if s.finalError == nil && !s.finishedWriting {
++		s.finalError = err
+ 		s.returnFramesToPool()
+ 	}
+ 	s.mutex.Unlock()
+@@ -575,15 +575,8 @@ func (s *sendStreamAckHandler) OnLost(f wire.Frame) {
+ 	sf := f.(*wire.StreamFrame)
+ 	s.mutex.Lock()
+ 	if s.cancelled {
+-		// If the reliable size was 0 when the stream was cancelled,
+-		// the number of outstanding frames was immediately set to 0,
+-		// and the retransmission queue was dropped.
+ 		// Return the frame to pool since it won't be retransmitted.
+-		if (*sendStream)(s).reliableOffset() == 0 {
+-			sf.PutBack()
+-			s.mutex.Unlock()
+-			return
+-		}
++		sf.PutBack()
+ 		s.mutex.Unlock()
+ 		return
+ 	}
+-- 
+2.54.0
+

@@ -1,0 +1,179 @@
+name: Auto bump dae/daed
+
+# Tracks the aggressive combo (daeuniverse + olicesx perf forks), gates on a real
+# SDK build, and only then publishes. main stays clean until the gate is green:
+# all work happens on auto-bump-staging; main is fast-forwarded only on success.
+
+on:
+  schedule:
+    - cron: '30 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+  issues: write
+
+env:
+  STAGING: auto-bump-staging
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect upstream changes
+        id: detect
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          . ci/pins.env
+          daed_new=$(git ls-remote https://github.com/daeuniverse/daed HEAD | cut -f1)
+          wing_new=$(git ls-remote https://github.com/daeuniverse/dae-wing HEAD | cut -f1)
+          # route A: track upstream dae main (merged onto the olicesx perf base at
+          # assemble time), not the olicesx kdae fork, so the core stays fresh.
+          core_up_new=$(git ls-remote https://github.com/daeuniverse/dae main | cut -f1)
+          outbound_new=$(git ls-remote https://github.com/olicesx/outbound perf/complete-optimizations | cut -f1)
+          # quic-go is no longer auto-tracked: we own its perf delta as patches in
+          # ci/patches/quic-go and pin only QUICGO_BASE_COMMIT. Refresh deliberately
+          # per ci/PERF-PATCHES.md (the perf-staleness job nudges when it ages).
+          if [ "$daed_new" = "$DAED_COMMIT" ] && [ "$wing_new" = "$WING_COMMIT" ] \
+             && [ "$core_up_new" = "$CORE_UPSTREAM_COMMIT" ] && [ "$outbound_new" = "$OUTBOUND_COMMIT" ]; then
+            echo "No upstream change."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          daed_date=$(gh api repos/daeuniverse/daed/commits/$daed_new --jq '.commit.committer.date' | cut -dT -f1 | tr '-' '.')
+          wing_date=$(gh api repos/daeuniverse/dae-wing/commits/$wing_new --jq '.commit.committer.date' | cut -dT -f1 | tr '-' '.')
+          core_date=$(gh api repos/daeuniverse/dae/commits/$core_up_new --jq '.commit.committer.date' | cut -dT -f1 | tr '-' '.')
+          outbound_date=$(gh api repos/olicesx/outbound/commits/$outbound_new --jq '.commit.committer.date' | cut -dT -f1 | tr '-' '.')
+          # version = newest component date (YYYY.MM.DD sorts chronologically), used
+          # for BOTH dae and daed so the stamp never regresses when only the core moves.
+          ver=$(printf '%s\n%s\n%s\n%s\n' "$daed_date" "$wing_date" "$core_date" "$outbound_date" | sort -r | head -1)
+          changes=""
+          add_change() {
+            [ "$2" = "$3" ] && return 0
+            changes="${changes:+$changes, }$1 $(printf '%s' "$2" | cut -c1-7)→$(printf '%s' "$3" | cut -c1-7)"
+          }
+          add_change daed "$DAED_COMMIT" "$daed_new"
+          add_change wing "$WING_COMMIT" "$wing_new"
+          add_change core "$CORE_UPSTREAM_COMMIT" "$core_up_new"
+          add_change outbound "$OUTBOUND_COMMIT" "$outbound_new"
+          {
+            echo "changed=true"
+            echo "daed=$daed_new"; echo "wing=$wing_new"; echo "core_up=$core_up_new"
+            echo "outbound=$outbound_new"
+            echo "ver=$ver"
+            echo "changes=$changes"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Sync kenzok8 forks from olicesx
+        if: steps.detect.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.FORK_SYNC_TOKEN }}
+        run: |
+          gh repo sync kenzok8/outbound -b perf/complete-optimizations --source olicesx/outbound --force
+          # dae core: mirror kdae as delete-insurance; build still pins frozen CORE_COMMIT (an ancestor of kdae), so output is unchanged.
+          gh repo sync kenzok8/dae -b kdae --source olicesx/dae --force
+          # quic-go: NOT synced — base pinned, perf applied from ci/patches/quic-go.
+
+      - name: Stage new pins
+        if: steps.detect.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          V: ${{ steps.detect.outputs.ver }}
+        run: |
+          set -eu
+          sed -i \
+            -e "s/^DAE_VERSION=.*/DAE_VERSION=$V/" \
+            -e "s/^DAED_VERSION=.*/DAED_VERSION=$V/" \
+            -e "s/^DAED_COMMIT=.*/DAED_COMMIT=${{ steps.detect.outputs.daed }}/" \
+            -e "s/^WING_COMMIT=.*/WING_COMMIT=${{ steps.detect.outputs.wing }}/" \
+            -e "s/^CORE_UPSTREAM_COMMIT=.*/CORE_UPSTREAM_COMMIT=${{ steps.detect.outputs.core_up }}/" \
+            -e "s/^OUTBOUND_COMMIT=.*/OUTBOUND_COMMIT=${{ steps.detect.outputs.outbound }}/" \
+            ci/pins.env
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$STAGING"
+          git add ci/pins.env
+          git commit -m "chore: bump pins (${{ steps.detect.outputs.changes }})"
+          git push -f origin "$STAGING"
+
+      - name: Assemble + gate build on staging
+        if: steps.detect.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          run_and_wait() { # <workflow-file> [extra dispatch args...]
+            gh workflow run "$1" --ref "$STAGING" "${@:2}"
+            sleep 12
+            id=$(gh run list --workflow "$1" --branch "$STAGING" --limit 1 --json databaseId --jq '.[0].databaseId')
+            echo "watching $1 run $id"
+            gh run watch "$id" --exit-status
+          }
+          run_and_wait assemble-dae-src.yml
+          run_and_wait assemble-daed-src.yml
+          # gate: real SDK compile of both, no publish
+          run_and_wait test-daed-build.yml -f packages="dae daed"
+
+      - name: Promote to main and publish
+        if: steps.detect.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          git fetch origin "$STAGING"
+          git push origin "origin/$STAGING:main"
+          gh workflow run release.yml --ref main -f prerelease=false || \
+            gh workflow run release.yml --ref main
+
+  # Independent watchdog: our quic-go = QUICGO_BASE + ci/patches/quic-go, which
+  # reproduces the olicesx perf tip that upstream daeuniverse/dae itself pins.
+  # The only meaningful signal is upstream dae bumping the quic-go it requires —
+  # then we refresh our base/patches to match (ci/PERF-PATCHES.md). Comparing to
+  # quic-go/quic-go releases is meaningless: dae uses an old, API-incompatible
+  # base on purpose. Never blocks the bump.
+  perf-staleness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check quic-go vs what upstream dae requires
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          . ci/pins.env
+          # the quic-go commit upstream dae main pins (go.mod replace target)
+          want=$(curl -fsSL https://raw.githubusercontent.com/daeuniverse/dae/main/go.mod \
+            | grep -E '^replace .*olicesx/quic-go' \
+            | sed -E 's/.*-([0-9a-f]{12})[[:space:]]*$/\1/' | tail -1)
+          ours="$(printf '%s' "$QUICGO_PERF_TIP" | cut -c1-12)"
+          echo "upstream dae requires quic-go ...${want:-?} ; ours reproduces ...${ours}"
+          if [ -z "$want" ] || [ "$want" = "$ours" ]; then
+            echo "quic-go in sync with upstream dae; no alert."
+            # auto-close a stale tracking issue if one is open
+            n=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "Perf fork staleness in:title" --json number --jq '.[0].number' 2>/dev/null || echo "")
+            [ -n "$n" ] && gh issue close "$n" --repo "$GITHUB_REPOSITORY" -c "Back in sync with upstream dae's quic-go; auto-closing." || true
+            exit 0
+          fi
+          echo "::warning::upstream dae bumped quic-go to ${want}; refresh ci/patches/quic-go base per ci/PERF-PATCHES.md."
+          title="⚠️ quic-go: upstream dae moved to ${want}"
+          body=$(printf '%s\n' \
+            "Automated check (auto-bump.yml)." \
+            "" \
+            "- upstream **daeuniverse/dae main** now requires quic-go \`...${want}\`" \
+            "- our base+patches reproduce \`...${ours}\` (QUICGO_PERF_TIP)" \
+            "" \
+            "Refresh our quic-go base / patches to match upstream, following ci/PERF-PATCHES.md," \
+            "then update QUICGO_BASE_COMMIT + QUICGO_PERF_TIP. Heads-up, not an emergency.")
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "Perf fork staleness in:title" --json number --jq '.[0].number' 2>/dev/null || echo "")
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
+          fi

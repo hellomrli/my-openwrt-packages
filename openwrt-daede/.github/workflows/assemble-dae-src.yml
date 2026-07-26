@@ -1,0 +1,104 @@
+name: Assemble dae source
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Load pins
+        run: cat ci/pins.env | grep -E '^[A-Z]' >> "$GITHUB_ENV"
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.0"
+
+      - name: Assemble source tree
+        run: |
+          set -eux
+          OUT="dae-${DAE_VERSION}"
+          rm -rf "$OUT"; mkdir -p "$OUT"
+
+          fetch_at() {
+            git clone --filter=blob:none --no-checkout "$1" "$2"
+            git -C "$2" checkout "$3"
+          }
+
+          fetch_at https://github.com/kenzok8/dae "$OUT/core" "$CORE_COMMIT"
+          # route A: merge upstream dae main onto the frozen olicesx perf base so the
+          # core tracks official while keeping the eBPF/perf fork. A merge conflict
+          # fails the build (gate) and signals a manual rebase is needed.
+          git -C "$OUT/core" fetch --no-tags https://github.com/daeuniverse/dae "$CORE_UPSTREAM_COMMIT"
+          git -C "$OUT/core" -c user.email=ci@local -c user.name=ci merge --no-edit "$CORE_UPSTREAM_COMMIT"
+          ( cd "$OUT/core" && git submodule update --init )
+          fetch_at https://github.com/kenzok8/outbound "$OUT/outbound" "$OUTBOUND_COMMIT"
+          # quic-go: fetch the base, then apply our self-owned perf patches instead
+          # of depending on the olicesx perf branch. Reproduces the same tree.
+          fetch_at https://github.com/kenzok8/quic-go "$OUT/quic-go" "$QUICGO_BASE_COMMIT"
+          git -C "$OUT/quic-go" -c user.name=ci -c user.email=ci@local \
+              am "$GITHUB_WORKSPACE"/ci/patches/quic-go/*.patch
+
+          ( cd "$OUT/core" \
+              && go mod edit -replace github.com/daeuniverse/outbound=../outbound \
+              && go mod edit -replace github.com/olicesx/quic-go=../quic-go \
+              && go mod tidy \
+              && cp "$GITHUB_WORKSPACE/ci/default.pgo" default.pgo )
+
+          find "$OUT" -name .git -type d -prune -exec rm -rf {} +
+
+          # Unique id from the exact pin set: identical pins reproduce the same
+          # name (idempotent), different content gets a different name - so a
+          # second assemble on the same date never clobbers an older tarball
+          # that older commits still reference via PKG_HASH.
+          SRC_ID=$(printf '%s' "${CORE_COMMIT}${CORE_UPSTREAM_COMMIT}${OUTBOUND_COMMIT}${QUICGO_BASE_COMMIT}" | sha256sum | cut -c1-12)
+          TARBALL="dae-src-${DAE_VERSION}-${SRC_ID}.tar.gz"
+          tar --numeric-owner --owner=0 --group=0 --sort=name -czf "$TARBALL" "$OUT"
+          echo "PKG_HASH=$(sha256sum "$TARBALL" | cut -d' ' -f1)" >> "$GITHUB_ENV"
+          echo "TARBALL=$TARBALL" >> "$GITHUB_ENV"
+
+      - name: Publish to dae-src release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view dae-src --repo "${{ github.repository }}" >/dev/null 2>&1 || \
+            gh release create dae-src --repo "${{ github.repository }}" \
+              --title "dae pinned source" --notes "Auto-assembled dae source tarballs (newest 3 kept)." --latest=false
+          gh release upload dae-src "$TARBALL" --repo "${{ github.repository }}" --clobber
+          # bound growth: keep only the newest 3 tarballs (never the release/tag)
+          gh release view dae-src --repo "${{ github.repository }}" --json assets \
+            --jq '.assets | sort_by(.createdAt) | reverse | .[3:] | .[].name' \
+            | while read -r old; do
+                [ -n "$old" ] && gh release delete-asset dae-src "$old" --repo "${{ github.repository }}" -y
+              done
+
+      - name: Write PKG_HASH into Makefile and push
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          cur_ver=$(sed -n 's/^PKG_VERSION:=//p' dae/Makefile)
+          cur_rel=$(sed -n 's/^PKG_RELEASE:=//p' dae/Makefile)
+          if [ "$cur_ver" = "${DAE_VERSION}" ] && grep -qx "PKG_SOURCE:=${TARBALL}" dae/Makefile; then
+            echo "no change"; exit 0
+          fi
+          if [ "$cur_ver" = "${DAE_VERSION}" ]; then
+            rel=$((cur_rel + 1))
+          else
+            rel=1
+          fi
+          sed -i "s/^PKG_VERSION:=.*/PKG_VERSION:=${DAE_VERSION}/" dae/Makefile
+          sed -i "s/^PKG_RELEASE:=.*/PKG_RELEASE:=${rel}/" dae/Makefile
+          sed -i "s|^PKG_SOURCE:=.*|PKG_SOURCE:=${TARBALL}|" dae/Makefile
+          sed -i "s/^PKG_HASH:=.*/PKG_HASH:=${PKG_HASH}/" dae/Makefile
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dae/Makefile
+          git diff --cached --quiet && { echo "no change"; exit 0; }
+          git commit -m "chore(dae): assemble pinned source ${DAE_VERSION}-${rel}"
+          git push origin "HEAD:${{ github.ref_name }}"

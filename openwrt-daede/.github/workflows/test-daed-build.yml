@@ -1,0 +1,56 @@
+name: Test daed build
+
+# Iteration-only: builds dae/daed for one arch and uploads the .apk as an artifact.
+# No feed upload, no release — safe to run on feature branches.
+
+on:
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: Packages to build
+        default: "dae daed"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, aarch64_generic]
+        sdk: ["24.10", "25.12"]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build packages
+        uses: kenzok8/gh-action-sdk@hash
+        env:
+          CONTAINER: immortalwrt/sdk
+          ARCH: ${{ matrix.arch }}-openwrt-${{ matrix.sdk }}
+          FEEDNAME: daede
+          PACKAGES: ${{ github.event.inputs.packages }}
+          EXTRA_FEEDS: src-git|wall|https://github.com/kenzok8/wall
+          NO_REFRESH_CHECK: true
+          IGNORE_ERRORS: false
+          INDEX: 1
+          KEY_BUILD: ${{ secrets.OPKG_KEY_BUILD }}
+          PRIVATE_KEY: ${{ secrets.APK_PRIVATE_KEY }}
+          GOLANG_REPO: https://github.com/kenzok8/golang
+          GOLANG_BRANCH: '1.26'
+
+      - name: List built packages
+        if: always()
+        run: ls -la bin/packages/${{ matrix.arch }}/daede/ 2>/dev/null || echo "no output dir"
+
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: pkgs-${{ matrix.arch }}-${{ matrix.sdk }}
+          path: |
+            bin/packages/${{ matrix.arch }}/daede/*.apk
+            logs/**
+            *.log
+            **/*.log
+          if-no-files-found: warn

@@ -1,0 +1,169 @@
+name: Bug Report / BUG 反馈
+description: Report a reproducible openwrt-daede issue / 反馈可复现的 openwrt-daede 问题
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请尽量一次性填完整。只有一句“不能用 / 启动失败 / 导入失败”的 Issue 无法判断是项目问题、固件问题、包源问题还是配置问题。
+
+        Please fill this form carefully. Issues without logs, screenshots, versions, and reproduction steps are usually not actionable.
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-check / 提交前自查
+      description: Please confirm these items before submitting / 请先确认以下事项
+      options:
+        - label: I have searched existing issues / 我已经搜索过已有 Issue
+          required: true
+        - label: I am using the latest release from this repository / 我正在使用本仓库发布的最新版
+          required: true
+        - label: I have removed sensitive data from logs, subscriptions, configs, and screenshots / 我已移除日志、订阅、配置和截图中的敏感信息
+          required: true
+        - label: I understand that issues without logs or reproduction steps may be closed / 我理解缺少日志或复现步骤的 Issue 可能会被关闭
+          required: true
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Backend / 后端
+      options:
+        - daed
+        - dae
+        - both / 两者都有
+        - unknown / 不确定
+    validations:
+      required: true
+  - type: dropdown
+    id: issue_area
+    attributes:
+      label: Area / 问题类型
+      options:
+        - Start or stop failure / 启停失败
+        - Subscription import / 订阅导入
+        - Node conversion / 节点转换
+        - LuCI UI / LuCI 界面
+        - daed Web UI / daed 面板
+        - Routing or transparent proxy / 路由或透明代理
+        - DNS
+        - Package update / 包更新
+        - Other / 其他
+    validations:
+      required: true
+  - type: input
+    id: daede_version
+    attributes:
+      label: Package Versions / 软件包版本
+      description: Paste the versions of dae, daed, and luci-app-daede / 填写 dae、daed、luci-app-daede 的版本
+      placeholder: "e.g. dae 2026.07.05-r1, daed 2026.07.05-r1, luci-app-daede 1.14.7-r8"
+    validations:
+      required: true
+  - type: input
+    id: openwrt_version
+    attributes:
+      label: OpenWrt / ImmortalWrt Version / 系统版本
+      placeholder: "e.g. ImmortalWrt 24.10 / OpenWrt 24.10 / QWRT 25.12"
+    validations:
+      required: true
+  - type: input
+    id: kernel_version
+    attributes:
+      label: Kernel Version / 内核版本
+      placeholder: "e.g. 6.6.143"
+    validations:
+      required: true
+  - type: input
+    id: arch
+    attributes:
+      label: Architecture / 架构
+      placeholder: "e.g. x86_64, aarch64_cortex-a53, arm_cortex-a7_neon-vfpv4"
+    validations:
+      required: true
+  - type: dropdown
+    id: package_manager
+    attributes:
+      label: Package Manager / 包管理器
+      options:
+        - opkg
+        - apk
+        - unknown / 不确定
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description / 问题描述
+      description: What happened? Be specific. / 发生了什么？请具体说明。
+      placeholder: |
+        例：在 服务 -> daede -> 配置 中切换到 daed 后点击启动，页面显示启动失败。
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior / 预期行为
+      description: What did you expect to happen? / 你期望它如何工作？
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction Steps / 复现步骤
+      description: List exact steps to reproduce / 请列出可复现的具体步骤
+      placeholder: |
+        1. 安装 ...
+        2. 打开 服务 -> daede -> ...
+        3. 点击 ...
+        4. 看到错误 ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / 日志
+      description: Paste relevant logs. Remove subscriptions, tokens, passwords, node addresses, and public IPs. / 粘贴相关日志，并删除订阅、Token、密码、节点地址、公网 IP。
+      placeholder: |
+        建议提供：
+        logread | grep -Ei 'dae|daed|daede' | tail -200
+        tail -200 /var/log/dae/dae.log 2>/dev/null
+        tail -200 /var/log/daed/daed.log 2>/dev/null
+        /etc/init.d/dae status 2>&1
+        /etc/init.d/daed status 2>&1
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: package_state
+    attributes:
+      label: Package / File State / 包与文件状态
+      description: Paste package and binary state. This is required for install/start issues. / 粘贴包和二进制状态；安装或启动问题必须提供。
+      placeholder: |
+        opkg status dae daed luci-app-daede 2>/dev/null
+        apk info -vv dae daed luci-app-daede 2>/dev/null
+        ls -l /usr/bin/dae /usr/bin/daed /usr/bin/daed-guard 2>/dev/null
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or Photos / 截图或照片
+      description: UI problems must include screenshots. For non-UI issues, write N/A. / 界面问题必须提供截图；非界面问题填 N/A。
+      placeholder: "Drag screenshots here, or write N/A."
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Relevant Config / 相关配置
+      description: Paste only relevant sanitized config / 只粘贴相关且已脱敏的配置
+      render: yaml
+    validations:
+      required: false
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional Context / 补充信息
+      description: Firmware source, image builder, network topology, BTF status, or anything else useful / 固件来源、ImageBuilder、网络拓扑、BTF 状态或其他信息
+    validations:
+      required: false

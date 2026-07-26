@@ -1,0 +1,32 @@
+From bb65418d151a21d0441472b6d9d270863feaa9d0 Mon Sep 17 00:00:00 2001
+From: kix <olices@9up.in>
+Date: Thu, 26 Feb 2026 12:43:15 +0800
+Subject: [PATCH 1/4] fix: improve UDP GSO handling to prevent issues with
+ single-segment sends
+
+---
+ sys_conn_oob.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/sys_conn_oob.go b/sys_conn_oob.go
+index 6a29df23..fce027d1 100644
+--- a/sys_conn_oob.go
++++ b/sys_conn_oob.go
+@@ -243,7 +243,13 @@ func (c *oobConn) WritePacket(b []byte, addr net.Addr, packetInfoOOB []byte, gso
+ 		if !c.capabilities().GSO {
+ 			panic("GSO disabled")
+ 		}
+-		oob = appendUDPSegmentSizeMsg(oob, gsoSize)
++		// Only request UDP GSO when the payload will actually be segmented.
++		// Some drivers/devices misbehave when UDP_SEGMENT is set for an effectively
++		// single-segment send (segment_size >= payload length). This mirrors quinn-udp's
++		// behavior and fixes issues with PPPoE and similar drivers.
++		if len(b) > int(gsoSize) {
++			oob = appendUDPSegmentSizeMsg(oob, gsoSize)
++		}
+ 	}
+ 	if ecn != protocol.ECNUnsupported {
+ 		if !c.capabilities().ECN {
+-- 
+2.54.0
+

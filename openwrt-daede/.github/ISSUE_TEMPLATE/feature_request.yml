@@ -1,0 +1,60 @@
+name: Feature Request / 功能请求
+description: Suggest an improvement for openwrt-daede / 为 openwrt-daede 提出改进建议
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-check / 提交前自查
+      options:
+        - label: I have searched existing issues / 我已经搜索过已有 Issue
+          required: true
+        - label: This request is related to openwrt-daede itself / 这个请求与 openwrt-daede 本身相关
+          required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area / 模块
+      options:
+        - LuCI UI / LuCI 界面
+        - dae backend / dae 后端
+        - daed backend / daed 后端
+        - Subscription import / 订阅导入
+        - Clash YAML conversion / Clash YAML 转换
+        - Routing or transparent proxy / 路由或透明代理
+        - DNS
+        - Package update / 包更新
+        - Build & Release / 构建与发布
+        - Documentation / 文档
+        - Other / 其他
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / 使用痛点
+      description: What problem are you trying to solve? / 你想解决什么问题？
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal / 建议方案
+      description: Describe the behavior or UI you want / 描述你希望的行为或界面
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives / 备选方案
+      description: Any workaround or alternative design? / 是否有临时方案或其他设计？
+    validations:
+      required: false
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or Examples / 截图或示例
+      description: Screenshots, references, or examples / 截图、参考资料或示例
+    validations:
+      required: false

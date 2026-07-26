@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: README / 使用说明
+    url: https://github.com/kenzok8/openwrt-daede#readme
+    about: Read install and usage notes before opening an issue / 提交 Issue 前请先阅读安装与使用说明
+  - name: Releases / 版本发布
+    url: https://github.com/kenzok8/openwrt-daede/releases
+    about: Download packages and read changelogs / 下载安装包并查看更新日志
+  - name: Wiki / 使用教程
+    url: https://github.com/kenzok8/openwrt-daede/wiki
+    about: Read the beginner guide before asking usage questions / 提问前可先查看新手教程
