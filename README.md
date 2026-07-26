@@ -10,13 +10,13 @@
 
 ### 当前固件使用
 
+这三个包由 `my-ImmortalWrt` 的 [`.github/packages.json`](https://github.com/hellomrli/my-ImmortalWrt/blob/main/.github/packages.json) 声明，构建时按路径抽取。
+
 | 包 | 路径 | 来源 | 说明 |
 |----|------|------|------|
-| `adguardhome-dual` | `adguardhome-dual` | 本地维护 | 双 AdGuardHome 运行时包，用于 `dnsmasq + daed + 双 ADH` DNS 分流结构。 |
-| `dae` / `luci-app-daed` | `dae` | `QiuSimons/luci-app-daed` | Daed 后端和 LuCI 管理界面；固件内核配置需要 eBPF / BTF / XDP 支持。 |
+| `dae` / `daed` / `luci-app-daede` | `openwrt-daede` | `kenzok8/openwrt-daede` | dae 与 daed 双后端及统一 LuCI 管理界面；需要内核 eBPF / BTF / XDP 支持。 |
 | `luci-app-lucky` / `lucky` | `luci-app-lucky` | `gdy666/luci-app-lucky` | Lucky 运行时和 LuCI 管理界面。 |
 | `luci-app-watchdog` / `watchdog` | `luci-app-watchdog` | `sirpdboy/luci-app-watchdog` | 登录 / SSH 失败登录防护。 |
-| `golang` | `golang` | `sbwml/packages_lang_golang` | OpenWrt Go 打包目录，固定跟随 `26.x` 分支。 |
 
 ### 仅镜像保留
 
@@ -24,6 +24,7 @@
 
 | 包 | 路径 | 上游 |
 |----|------|------|
+| `golang` | `golang` | `sbwml/packages_lang_golang` |
 | `luci-app-adguardhome` | `luci-app-adguardhome` | `rufengsuixing/luci-app-adguardhome` |
 | `luci-app-mosdns` | `luci-app-mosdns` | `sbwml/luci-app-mosdns` |
 | `luci-app-smartdns` | `luci-app-smartdns` | `pymumu/luci-app-smartdns` |
@@ -32,11 +33,16 @@
 | `openwrt-passwall` | `openwrt-passwall` | `Openwrt-Passwall/openwrt-passwall` |
 | `openwrt-passwall2` | `openwrt-passwall2` | `Openwrt-Passwall/openwrt-passwall2` |
 
+本地维护的 `adguardhome-dual` 同样保留，但当前固件已改用官方 `adguardhome` 包加 overlay 提供双实例，不再编译该包。
+
 ## Golang 说明
+
+> `my-ImmortalWrt` 已改用 ImmortalWrt 官方 `packages/lang/golang`（master / openwrt-25.12 均为 Go 1.26.x），
+> 不再覆盖官方 Go 包。以下步骤仅供其它需要 sbwml Golang 的源码树参考。
 
 `golang/` 由 `sources.json` 同步 [`sbwml/packages_lang_golang`](https://github.com/sbwml/packages_lang_golang) 的 `26.x` 分支。
 
-固件构建仍会在 `./scripts/feeds install -a` 之后，按 sbwml 的说明将 Go 包移动到 OpenWrt feed 的标准路径：
+如果要用它替换官方 Go 包，需在 `./scripts/feeds install -a` 之后移动到 OpenWrt feed 的标准路径：
 
 ```sh
 rm -rf package/my-openwrt-packages/golang
@@ -67,23 +73,37 @@ GitHub Actions 每 6 小时自动同步一次，也支持手动运行 `Sync Open
 
 ## 在 OpenWrt 中使用
 
-在 OpenWrt / ImmortalWrt 源码树中克隆到 `package/` 目录下：
+> **不要把整个仓库克隆进 `package/`。** 本仓库同时保存了并非同一套方案的包：
+> `golang/` 会和 `feeds/packages/lang/golang` 产生重复的包定义，`adguardhome-dual`
+> 会和基于官方 `adguardhome` 的 overlay 双实例方案冲突，`openclash` / `passwall`
+> 等也会被包扫描一并纳入。请只取需要的子目录。
+
+推荐做法是克隆到源码树之外，再把需要的子目录复制进 `package/`：
 
 ```sh
-git clone --depth 1 https://github.com/hellomrli/my-openwrt-packages.git package/my-openwrt-packages
+git clone --depth 1 https://github.com/hellomrli/my-openwrt-packages.git /tmp/my-openwrt-packages
+cp -r /tmp/my-openwrt-packages/openwrt-daede package/dae
+cp -r /tmp/my-openwrt-packages/luci-app-lucky package/lucky
+cp -r /tmp/my-openwrt-packages/luci-app-watchdog package/watchdog
 ```
+
+`my-ImmortalWrt` 用 [`.github/scripts/fetch-packages.py`](https://github.com/hellomrli/my-ImmortalWrt/blob/main/.github/scripts/fetch-packages.py)
+自动完成这一步：镜像优先、上游兜底，并校验每个包的必需 `Makefile`。
 
 然后在固件 `.config` 中显式选择需要的包，例如：
 
 ```text
+CONFIG_PACKAGE_dae=y
 CONFIG_PACKAGE_daed=y
-CONFIG_PACKAGE_luci-app-daed=y
+CONFIG_PACKAGE_luci-app-daede=y
 CONFIG_PACKAGE_luci-app-lucky=y
 CONFIG_PACKAGE_luci-app-watchdog=y
-CONFIG_PACKAGE_adguardhome-dual=y
 ```
 
 `daed` 需要内核启用 eBPF / BTF / XDP。当前 `my-ImmortalWrt` 配置保留 kernel BTF，并显式选择 `DAED_USE_KERNEL_BTF`。
+
+同名包不要同时存在多份定义：本仓库只镜像 `kenzok8/openwrt-daede` 一份 dae/daed 来源，
+早先的 `QiuSimons/luci-app-daed`（旧 `dae/` 路径）已移除。
 
 ## 本地维护包
 

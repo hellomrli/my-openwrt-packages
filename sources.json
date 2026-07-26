@@ -18,10 +18,10 @@
     "description": "OpenClash LuCI app"
   },
   {
-    "name": "luci-app-daed",
-    "path": "dae",
-    "repo": "https://github.com/QiuSimons/luci-app-daed.git",
-    "description": "Daed and luci-app-daed packages"
+    "name": "openwrt-daede",
+    "path": "openwrt-daede",
+    "repo": "https://github.com/kenzok8/openwrt-daede.git",
+    "description": "dae, daed and luci-app-daede packages (used by my-ImmortalWrt)"
   },
   {
     "name": "luci-app-adguardhome",
