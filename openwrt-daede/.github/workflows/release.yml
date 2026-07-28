@@ -244,6 +244,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           name: Release ${{ steps.meta.outputs.tag }}
           body_path: release_notes.md
           prerelease: ${{ steps.meta.outputs.prerelease }}

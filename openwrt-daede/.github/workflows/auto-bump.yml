@@ -129,8 +129,10 @@ jobs:
           set -eu
           git fetch origin "$STAGING"
           git push origin "origin/$STAGING:main"
-          gh workflow run release.yml --ref main -f prerelease=false || \
-            gh workflow run release.yml --ref main
+          # Dispatch from the already-stable staging ref. Immediately resolving
+          # main after the push can briefly return its previous SHA.
+          gh workflow run release.yml --ref "$STAGING" -f prerelease=false || \
+            gh workflow run release.yml --ref "$STAGING"
 
   # Independent watchdog: our quic-go = QUICGO_BASE + ci/patches/quic-go, which
   # reproduces the olicesx perf tip that upstream daeuniverse/dae itself pins.
