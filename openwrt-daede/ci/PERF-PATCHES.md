@@ -60,11 +60,18 @@ sys_conn_oob.go                        (UDP GSO)
 Because the surface is tiny and self-contained, reapplying these commits on top
 of any refreshed base is a ~1h job.
 
-**Archived, self-owned copy:** these 4 commits are stored as reproducible patch
-files in `ci/patches/quic-go/` (verified: `git am` onto base `33005db` rebuilds
-the exact shipped tree, Go 1.26 `go build` clean). So the perf delta survives
-even if the olicesx repo disappears — apply them onto whatever base we maintain.
-See `ci/patches/quic-go/README.md`.
+**Archived, self-owned copy:** these 4 commits were stored as reproducible patch
+files in `ci/patches/quic-go/`. On 2026-07-31 the base moved to `6e2cee47`
+(`perf/datagram-pool`), which already contains all four, so the patch files were
+removed and the directory is now empty — the mechanism stays and any future delta
+goes back in there. See `ci/patches/quic-go/README.md`.
+
+**The base must match what outbound requires.** `daeuniverse/outbound` pins
+quic-go by pseudo-version; when its `go.mod` replace target runs ahead of
+`QUICGO_BASE_COMMIT`, the build fails (2026-07-31: `ReleaseDatagram undefined`
+across all 16 arch×SDK combos). `auto-bump.yml` now holds `OUTBOUND_COMMIT`
+whenever the two diverge, and the `perf-staleness` job opens the refresh
+reminder instead of letting a broken pair reach main.
 
 ### outbound
 
@@ -77,8 +84,9 @@ maintain locally.
 
 ## How to refresh quic-go ourselves (when a real fix lands)
 
-Trigger: a security/correctness fix in official quic-go that matters to us, or
-auto-bump's staleness alert (see below) firing for a long time.
+Trigger: auto-bump holding `OUTBOUND_COMMIT` because outbound now requires a newer
+quic-go (the common case — this is what the staleness issue reports), or a
+security/correctness fix in official quic-go that matters to us.
 
 The build no longer fetches the olicesx perf branch — `assemble-{dae,daed}-src.yml`
 fetch `QUICGO_BASE_COMMIT` from `kenzok8/quic-go` and `git am ci/patches/quic-go/*.patch`.
@@ -88,10 +96,13 @@ So a refresh means changing the base and/or the patch files, not chasing a branc
    - **a new upstream fix** → backport it as a new patch file in `ci/patches/quic-go/`
      (take the official commit's diff, apply to the matching file by hand — no shared
      history, so not a clean cherry-pick), or
-   - **a newer base** → bump `QUICGO_BASE_COMMIT` in `ci/pins.env`, then re-test that
-     the 4 existing patches still apply (regenerate them if a hunk drifts).
-2. Verify locally: `git clone kenzok8/quic-go`, checkout the base, `git am` the full
-   `ci/patches/quic-go/*.patch` set, confirm it applies and `go build ./...` is clean.
+   - **a newer base** → set `QUICGO_BASE_COMMIT` in `ci/pins.env` to exactly the
+     commit outbound's `go.mod` replaces to, then drop any patch file the new base
+     already contains (`git apply --check -R` succeeding means it is in there).
+2. Verify locally: `git clone kenzok8/quic-go`, checkout the base, `git am` whatever
+   remains in `ci/patches/quic-go/`, confirm it applies and `go build ./...` is clean.
+   Make sure `kenzok8/quic-go` carries the branch the base lives on — assemble fetches
+   from our fork, not from olicesx.
 3. Build-gate before merging (mandatory — never ship an unbuilt tree): on a staging
    branch run `assemble-daed-src.yml` + `assemble-dae-src.yml` then
    `test-daed-build.yml` — it must `go build` dae-core+wing clean.

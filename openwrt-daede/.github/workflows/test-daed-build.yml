@@ -50,6 +50,7 @@ jobs:
           name: pkgs-${{ matrix.arch }}-${{ matrix.sdk }}
           path: |
             bin/packages/${{ matrix.arch }}/daede/*.apk
+            bin/packages/${{ matrix.arch }}/daede/*.ipk
             logs/**
             *.log
             **/*.log

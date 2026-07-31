@@ -1,39 +1,42 @@
 # quic-go perf patches (self-owned)
 
-Authoritative, reproducible copy of the olicesx quic-go performance delta so the
-build no longer *depends* on the olicesx repo staying alive. See
-`../../PERF-PATCHES.md` for the full lineage and refresh procedure.
+Reproducible copy of any olicesx quic-go performance delta that is **not yet in
+our pinned base**, so the build never *depends* on the olicesx repo staying
+alive. See `../../PERF-PATCHES.md` for the full lineage and refresh procedure.
 
-## What these are
+## Current state: empty (nothing to carry)
 
-The 4 commits that turn the `enhanced-with-fixes` base into the shipped
-`perf/node-pooling-v2` tree. Total surface: 5 files.
+`QUICGO_BASE_COMMIT` is `6e2cee47210c` (`olicesx/quic-go`, branch
+`perf/datagram-pool`), which already contains all four patches this directory
+used to carry:
 
-| order | patch | effect |
-|-------|-------|--------|
-| 0001 | UDP GSO handling | fix single-segment send issues |
-| 0002 | B-tree node pooling + frame sorter | the main perf win |
-| 0003 | return stream frames to pool on cancellation | alloc reduction |
-| 0004 | RTT sample only for last ack-eliciting packet | correctness/perf |
+| was | effect | status |
+|-----|--------|--------|
+| 0001 | UDP GSO single-segment send fix | in base |
+| 0002 | B-tree node pooling + frame sorter | in base |
+| 0003 | return stream frames to pool on cancellation | in base |
+| 0004 | RTT sample only for last ack-eliciting packet | in base |
 
-## Base they apply onto
+They were removed when the base moved forward on 2026-07-31; re-applying them
+would conflict. The mechanism stays: drop `NNNN-*.patch` files here and the
+assemble workflows pick them up automatically (an empty directory is skipped).
 
-Generated against `kenzok8/quic-go` (fork of `olicesx/quic-go`):
+## Why the base is a feature branch
 
-- base branch `main` @ `33005db9cba0598e664c74026a440ffbf1bf0108`
-- applying 0001..0004 reproduces tree `e60bd44f6d544db01700fa5979468fbb99c7f23a`,
-  i.e. byte-for-byte the `perf/node-pooling-v2` tip `e0d255ff807c...`
-  (verified with `git am` + tree-hash compare, Go 1.26 `go build ./...` clean).
+`daeuniverse/outbound` pins quic-go by pseudo-version in its `go.mod`, and the
+commit it needs currently lives only on `perf/datagram-pool`, not on `main`.
+`QUICGO_BASE_COMMIT` must equal that target — `auto-bump.yml` refuses to move
+`OUTBOUND_COMMIT` when the two diverge, which is exactly the breakage that took
+dae/daed builds down on 2026-07-31 (`ReleaseDatagram undefined`).
 
 ## Apply
 
 ```sh
-git checkout -B perf <base>          # <base> = the quic-go base you maintain
-git am ci/patches/quic-go/0001-*.patch ci/patches/quic-go/0002-*.patch \
-       ci/patches/quic-go/0003-*.patch ci/patches/quic-go/0004-*.patch
+git checkout -B perf <base>          # <base> = QUICGO_BASE_COMMIT
+git am ci/patches/quic-go/*.patch    # no-op while this directory is empty
 ```
 
 If a future base has drifted and a hunk fails, fall back to `git apply --3way`
-or port the change by hand — the surface is tiny (frame_sorter.go,
-internal/ackhandler/sent_packet_handler.go, internal/utils/tree/tree.go,
-send_stream.go, sys_conn_oob.go).
+or port the change by hand — the surface has historically been tiny
+(frame_sorter.go, internal/ackhandler/sent_packet_handler.go,
+internal/utils/tree/tree.go, send_stream.go, sys_conn_oob.go).

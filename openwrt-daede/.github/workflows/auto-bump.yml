@@ -38,9 +38,18 @@ jobs:
           # assemble time), not the olicesx kdae fork, so the core stays fresh.
           core_up_new=$(git ls-remote https://github.com/daeuniverse/dae main | cut -f1)
           outbound_new=$(git ls-remote https://github.com/olicesx/outbound perf/complete-optimizations | cut -f1)
-          # quic-go is no longer auto-tracked: we own its perf delta as patches in
-          # ci/patches/quic-go and pin only QUICGO_BASE_COMMIT. Refresh deliberately
-          # per ci/PERF-PATCHES.md (the perf-staleness job nudges when it ages).
+          # quic-go is not auto-tracked, but outbound pins it by pseudo-version:
+          # bumping outbound past our QUICGO_BASE_COMMIT breaks the build (2026-07-31,
+          # ReleaseDatagram undefined), so hold outbound until the bases are refreshed.
+          outbound_wants=$(curl -fsSL "https://raw.githubusercontent.com/olicesx/outbound/${outbound_new}/go.mod" \
+            | grep -E '^replace .*olicesx/quic-go' \
+            | sed -E 's/.*-([0-9a-f]{12})[[:space:]]*$/\1/' | tail -1)
+          ours_quicgo="$(printf '%s' "$QUICGO_BASE_COMMIT" | cut -c1-12)"
+          if [ -n "$outbound_wants" ] && [ "$outbound_wants" != "$ours_quicgo" ]; then
+            echo "::warning::outbound ${outbound_new} needs quic-go ${outbound_wants}, ours is ${ours_quicgo}; holding outbound."
+            echo "quicgo_mismatch=$outbound_wants" >> "$GITHUB_OUTPUT"
+            outbound_new="$OUTBOUND_COMMIT"
+          fi
           if [ "$daed_new" = "$DAED_COMMIT" ] && [ "$wing_new" = "$WING_COMMIT" ] \
              && [ "$core_up_new" = "$CORE_UPSTREAM_COMMIT" ] && [ "$outbound_new" = "$OUTBOUND_COMMIT" ]; then
             echo "No upstream change."
@@ -79,7 +88,8 @@ jobs:
           gh repo sync kenzok8/outbound -b perf/complete-optimizations --source olicesx/outbound --force
           # dae core: mirror kdae as delete-insurance; build still pins frozen CORE_COMMIT (an ancestor of kdae), so output is unchanged.
           gh repo sync kenzok8/dae -b kdae --source olicesx/dae --force
-          # quic-go: NOT synced — base pinned, perf applied from ci/patches/quic-go.
+          # quic-go: mirror the branch QUICGO_BASE_COMMIT lives on — assemble fetches it from our fork.
+          gh repo sync kenzok8/quic-go -b perf/datagram-pool --source olicesx/quic-go --force
 
       - name: Stage new pins
         if: steps.detect.outputs.changed == 'true'
@@ -112,14 +122,20 @@ jobs:
           run_and_wait() { # <workflow-file> [extra dispatch args...]
             gh workflow run "$1" --ref "$STAGING" "${@:2}"
             sleep 12
-            id=$(gh run list --workflow "$1" --branch "$STAGING" --limit 1 --json databaseId --jq '.[0].databaseId')
-            echo "watching $1 run $id"
-            gh run watch "$id" --exit-status
+            LAST_RUN_ID=$(gh run list --workflow "$1" --branch "$STAGING" --limit 1 --json databaseId --jq '.[0].databaseId')
+            echo "watching $1 run $LAST_RUN_ID"
+            gh run watch "$LAST_RUN_ID" --exit-status
           }
           run_and_wait assemble-dae-src.yml
           run_and_wait assemble-daed-src.yml
-          # gate: real SDK compile of both, no publish
+          # gate: real SDK compile, no publish. gh-action-sdk exits 0 on failure, so assert the packages exist.
           run_and_wait test-daed-build.yml -f packages="dae daed"
+          rm -rf gate-artifacts
+          gh run download "$LAST_RUN_ID" -D gate-artifacts
+          for pkg in dae daed; do
+            find gate-artifacts -name "${pkg}-*.apk" -o -name "${pkg}_*.ipk" | grep -q . || {
+              echo "gate failed: $pkg produced no package"; exit 1; }
+          done
 
       - name: Promote to main and publish
         if: steps.detect.outputs.changed == 'true'
@@ -134,45 +150,46 @@ jobs:
           gh workflow run release.yml --ref "$STAGING" -f prerelease=false || \
             gh workflow run release.yml --ref "$STAGING"
 
-  # Independent watchdog: our quic-go = QUICGO_BASE + ci/patches/quic-go, which
-  # reproduces the olicesx perf tip that upstream daeuniverse/dae itself pins.
-  # The only meaningful signal is upstream dae bumping the quic-go it requires —
-  # then we refresh our base/patches to match (ci/PERF-PATCHES.md). Comparing to
-  # quic-go/quic-go releases is meaningless: dae uses an old, API-incompatible
-  # base on purpose. Never blocks the bump.
+  # Independent watchdog: our quic-go = QUICGO_BASE + ci/patches/quic-go. The
+  # binding constraint is the quic-go that olicesx/outbound requires, since we
+  # track its perf branch and it runs ahead of daeuniverse/dae main. When it moves
+  # past our base, auto-bump holds outbound and this opens the refresh reminder
+  # (ci/PERF-PATCHES.md). Comparing to quic-go/quic-go releases is meaningless:
+  # the perf lineage is an old, API-incompatible base on purpose. Never blocks.
   perf-staleness:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Check quic-go vs what upstream dae requires
+      - name: Check quic-go vs what outbound requires
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
           . ci/pins.env
-          # the quic-go commit upstream dae main pins (go.mod replace target)
-          want=$(curl -fsSL https://raw.githubusercontent.com/daeuniverse/dae/main/go.mod \
+          # the quic-go commit olicesx/outbound's perf branch pins (go.mod replace target)
+          want=$(curl -fsSL https://raw.githubusercontent.com/olicesx/outbound/perf/complete-optimizations/go.mod \
             | grep -E '^replace .*olicesx/quic-go' \
             | sed -E 's/.*-([0-9a-f]{12})[[:space:]]*$/\1/' | tail -1)
           ours="$(printf '%s' "$QUICGO_PERF_TIP" | cut -c1-12)"
-          echo "upstream dae requires quic-go ...${want:-?} ; ours reproduces ...${ours}"
+          echo "outbound requires quic-go ...${want:-?} ; ours reproduces ...${ours}"
           if [ -z "$want" ] || [ "$want" = "$ours" ]; then
-            echo "quic-go in sync with upstream dae; no alert."
+            echo "quic-go in sync with outbound; no alert."
             # auto-close a stale tracking issue if one is open
             n=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "Perf fork staleness in:title" --json number --jq '.[0].number' 2>/dev/null || echo "")
-            [ -n "$n" ] && gh issue close "$n" --repo "$GITHUB_REPOSITORY" -c "Back in sync with upstream dae's quic-go; auto-closing." || true
+            [ -n "$n" ] && gh issue close "$n" --repo "$GITHUB_REPOSITORY" -c "Back in sync with outbound's quic-go; auto-closing." || true
             exit 0
           fi
-          echo "::warning::upstream dae bumped quic-go to ${want}; refresh ci/patches/quic-go base per ci/PERF-PATCHES.md."
-          title="⚠️ quic-go: upstream dae moved to ${want}"
+          echo "::warning::outbound moved quic-go to ${want}; refresh QUICGO_BASE_COMMIT per ci/PERF-PATCHES.md."
+          title="⚠️ quic-go: outbound moved to ${want}"
           body=$(printf '%s\n' \
             "Automated check (auto-bump.yml)." \
             "" \
-            "- upstream **daeuniverse/dae main** now requires quic-go \`...${want}\`" \
+            "- **olicesx/outbound** \`perf/complete-optimizations\` now requires quic-go \`...${want}\`" \
             "- our base+patches reproduce \`...${ours}\` (QUICGO_PERF_TIP)" \
             "" \
-            "Refresh our quic-go base / patches to match upstream, following ci/PERF-PATCHES.md," \
-            "then update QUICGO_BASE_COMMIT + QUICGO_PERF_TIP. Heads-up, not an emergency.")
+            "Until these match, auto-bump holds OUTBOUND_COMMIT and dae/daed stay on the" \
+            "last good combo. Refresh following ci/PERF-PATCHES.md, then update" \
+            "QUICGO_BASE_COMMIT + QUICGO_PERF_TIP. Heads-up, not an emergency.")
           existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "Perf fork staleness in:title" --json number --jq '.[0].number' 2>/dev/null || echo "")
           if [ -n "$existing" ]; then
             gh issue edit "$existing" --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"

@@ -50,17 +50,20 @@ jobs:
           git -C "$OUT/wing/dae-core" -c user.email=ci@local -c user.name=ci merge --no-edit "$CORE_UPSTREAM_COMMIT"
           git -C "$OUT/wing/dae-core" submodule update --init
           fetch_at https://github.com/kenzok8/outbound "$OUT/outbound" "$OUTBOUND_COMMIT"
-          # quic-go: fetch the base, then apply our self-owned perf patches instead
-          # of depending on the olicesx perf branch. Reproduces the same tree.
+          # quic-go: fetch the base, then apply any self-owned perf patches we still
+          # carry on top of it. An empty patch directory is a no-op.
           fetch_at https://github.com/kenzok8/quic-go "$OUT/quic-go" "$QUICGO_BASE_COMMIT"
-          git -C "$OUT/quic-go" -c user.name=ci -c user.email=ci@local \
-              am "$GITHUB_WORKSPACE"/ci/patches/quic-go/*.patch
+          if ls "$GITHUB_WORKSPACE"/ci/patches/quic-go/*.patch >/dev/null 2>&1; then
+            git -C "$OUT/quic-go" -c user.name=ci -c user.email=ci@local \
+                am "$GITHUB_WORKSPACE"/ci/patches/quic-go/*.patch
+          fi
 
           # Freeze go deps so the SDK build is deterministic.
           ( cd "$OUT/wing/dae-core" && go mod tidy )
           ( cd "$OUT/wing" \
               && go mod edit -replace github.com/daeuniverse/outbound=../outbound \
               && go mod edit -replace github.com/daeuniverse/quic-go=../quic-go \
+              && go mod edit -replace github.com/olicesx/quic-go=../quic-go \
               && go mod tidy \
               && cp "$GITHUB_WORKSPACE/ci/default.pgo" default.pgo )
 
@@ -82,13 +85,14 @@ jobs:
           find "$OUT" -name .git -type d -prune -exec rm -rf {} +
           find "$OUT" -name node_modules -type d -prune -exec rm -rf {} +
 
-          # Unique id from the exact pin set: identical pins reproduce the same
+          # Unique id from the tarball content: identical input reproduces the same
           # name (idempotent), different content gets a different name - so a
           # second assemble on the same date never clobbers an older tarball
           # that older commits still reference via PKG_HASH.
-          SRC_ID=$(printf '%s' "${DAED_COMMIT}${WING_COMMIT}${CORE_COMMIT}${CORE_UPSTREAM_COMMIT}${OUTBOUND_COMMIT}${QUICGO_BASE_COMMIT}" | sha256sum | cut -c1-12)
+          tar --numeric-owner --owner=0 --group=0 --sort=name -czf src.tmp.tar.gz "$OUT"
+          SRC_ID=$(sha256sum src.tmp.tar.gz | cut -c1-12)
           TARBALL="daed-src-${DAED_VERSION}-${SRC_ID}.tar.gz"
-          tar --numeric-owner --owner=0 --group=0 --sort=name -czf "$TARBALL" "$OUT"
+          mv src.tmp.tar.gz "$TARBALL"
           echo "PKG_HASH=$(sha256sum "$TARBALL" | cut -d' ' -f1)" >> "$GITHUB_ENV"
           echo "TARBALL=$TARBALL" >> "$GITHUB_ENV"
 
