@@ -389,7 +389,7 @@ fi
 if [ "$_install_rc" -ne 0 ]; then
   echo "[ERROR] Package install failed (exit $_install_rc). daed/dae was NOT installed."
   echo "        Most common cause: unmet dependencies (v2ray-geoip / v2ray-geosite / kmod-*)."
-  echo "        Run 'opkg update' first, ensure those deps are reachable, then retry."
+  echo "        Run '$PM update' first, ensure those deps are reachable, then retry."
   exit "$_install_rc"
 fi
 
