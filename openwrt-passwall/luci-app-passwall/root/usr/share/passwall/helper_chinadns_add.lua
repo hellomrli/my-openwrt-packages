@@ -340,7 +340,7 @@ if CHNLIST ~= "0" and is_file_nonzero(RULES_PATH .. "/chnlist") then
 			"ipset-name4 " .. setflag .. "psw_chn" .. suffix,
 			"ipset-name6 " .. setflag .. "psw_chn6" .. suffix,
 			"add-tagchn-ip" .. ((NFTFLAG == "1") and (" " .. table.concat(sets, ",")) or ""),
-			"chnlist-first"
+			-- "chnlist-first"
 		}
 		merge_array(config_lines, tmp_lines)
 		log(string.format("  - 中国域名表(chnroute)：%s", DNS_LOCAL or "默认"))
