@@ -150,6 +150,52 @@ jobs:
           gh workflow run release.yml --ref "$STAGING" -f prerelease=false || \
             gh workflow run release.yml --ref "$STAGING"
 
+  patch-absorbed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check whether upstream absorbed our patches
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          absorbed=""
+          scan() { # <pkgdir> <src subdir inside the tarball>
+            makefile="$1/Makefile"
+            src=$(sed -n 's/^PKG_SOURCE:=//p' "$makefile")
+            url=$(sed -n 's/^PKG_SOURCE_URL:=//p' "$makefile")
+            ver=$(sed -n 's/^PKG_VERSION:=//p' "$makefile")
+            [ -n "$src" ] && [ -n "$url" ] || return 0
+            rm -rf scan-src scan.tar.gz
+            curl -fsSL -o scan.tar.gz "$url/$src" || return 0
+            mkdir scan-src
+            tar xzf scan.tar.gz -C scan-src
+            d="scan-src/$1-$ver/$2"
+            [ -d "$d" ] || return 0
+            for p in "$1"/patches/*.patch; do
+              [ -f "$p" ] || continue
+              if patch -p1 -d "$d" --dry-run -R -f <"$p" >/dev/null 2>&1; then
+                absorbed="${absorbed}\n- \`$p\`"
+              fi
+            done
+          }
+          scan dae core
+          scan daed wing
+          title="🧹 patches: upstream absorbed some of ours"
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "upstream absorbed in:title" --json number --jq '.[0].number' 2>/dev/null || echo "")
+          if [ -z "$absorbed" ]; then
+            echo "no patch is redundant."
+            [ -n "$existing" ] && gh issue close "$existing" --repo "$GITHUB_REPOSITORY" -c "No redundant patch left; auto-closing." || true
+            exit 0
+          fi
+          echo "::warning::these patches already exist upstream and can be dropped."
+          body=$(printf 'Automated check (auto-bump.yml).\n\nThese patches reverse-apply cleanly against the pinned source, meaning upstream already carries them. Keeping them risks a conflict on the next bump:\n%b\n\nDrop them (and bump PKG_RELEASE) after confirming the feature is still present.' "$absorbed")
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
+          fi
+
   # Independent watchdog: our quic-go = QUICGO_BASE + ci/patches/quic-go. The
   # binding constraint is the quic-go that olicesx/outbound requires, since we
   # track its perf branch and it runs ahead of daeuniverse/dae main. When it moves
