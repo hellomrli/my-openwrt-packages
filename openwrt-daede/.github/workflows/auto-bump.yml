@@ -221,7 +221,7 @@ jobs:
           if [ -z "$want" ] || [ "$want" = "$ours" ]; then
             echo "quic-go in sync with outbound; no alert."
             # auto-close a stale tracking issue if one is open
-            n=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "Perf fork staleness in:title" --json number --jq '.[0].number' 2>/dev/null || echo "")
+            n=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "quic-go outbound moved in:title" --json number --jq '.[0].number' 2>/dev/null || echo "")
             [ -n "$n" ] && gh issue close "$n" --repo "$GITHUB_REPOSITORY" -c "Back in sync with outbound's quic-go; auto-closing." || true
             exit 0
           fi
@@ -236,7 +236,7 @@ jobs:
             "Until these match, auto-bump holds OUTBOUND_COMMIT and dae/daed stay on the" \
             "last good combo. Refresh following ci/PERF-PATCHES.md, then update" \
             "QUICGO_BASE_COMMIT + QUICGO_PERF_TIP. Heads-up, not an emergency.")
-          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "Perf fork staleness in:title" --json number --jq '.[0].number' 2>/dev/null || echo "")
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "quic-go outbound moved in:title" --json number --jq '.[0].number' 2>/dev/null || echo "")
           if [ -n "$existing" ]; then
             gh issue edit "$existing" --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
           else
