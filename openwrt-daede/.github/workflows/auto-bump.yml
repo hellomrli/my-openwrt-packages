@@ -218,7 +218,15 @@ jobs:
             | sed -E 's/.*-([0-9a-f]{12})[[:space:]]*$/\1/' | tail -1)
           ours="$(printf '%s' "$QUICGO_PERF_TIP" | cut -c1-12)"
           echo "outbound requires quic-go ...${want:-?} ; ours reproduces ...${ours}"
-          if [ -z "$want" ] || [ "$want" = "$ours" ]; then
+          contains=""
+          if [ -n "$want" ] && [ "$want" != "$ours" ]; then
+            st=$(gh api "repos/${GITHUB_REPOSITORY_OWNER}/quic-go/compare/${want}...${QUICGO_BASE_COMMIT}" \
+                   --jq '.status' 2>/dev/null || echo "")
+            case "$st" in
+              identical|ahead) contains=1; echo "our base already contains ...${want} (compare: ${st})" ;;
+            esac
+          fi
+          if [ -z "$want" ] || [ "$want" = "$ours" ] || [ -n "$contains" ]; then
             echo "quic-go in sync with outbound; no alert."
             # auto-close a stale tracking issue if one is open
             n=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 --json number,title \
