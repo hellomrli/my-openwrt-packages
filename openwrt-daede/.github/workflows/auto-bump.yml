@@ -89,7 +89,7 @@ jobs:
           # dae core: mirror kdae as delete-insurance; build still pins frozen CORE_COMMIT (an ancestor of kdae), so output is unchanged.
           gh repo sync kenzok8/dae -b kdae --source olicesx/dae --force
           # quic-go: mirror the branch QUICGO_BASE_COMMIT lives on — assemble fetches it from our fork.
-          gh repo sync kenzok8/quic-go -b perf/datagram-pool --source olicesx/quic-go --force
+          gh repo sync kenzok8/quic-go -b perf/skip-addr-parse --source olicesx/quic-go --force
 
       - name: Stage new pins
         if: steps.detect.outputs.changed == 'true'
