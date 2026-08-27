@@ -139,7 +139,7 @@ run_xray() {
 			tcp)
 				json_add_string "remote_dns_tcp_server" "${remote_dns_tcp_server}"
 				json_add_string "remote_dns_tcp_port" "${remote_dns_tcp_port}"
-				dns_msg="${dns_msg} $(i18n "Remote DNS: %s" "tcp://${remote_dns_udp_server}:${remote_dns_udp_port}")"
+				dns_msg="${dns_msg} $(i18n "Remote DNS: %s" "tcp://${remote_dns_tcp_server}:${remote_dns_tcp_port}")"
 			;;
 			doh)
 				local _doh_url=$(echo $remote_dns_doh | awk -F ',' '{print $1}')
