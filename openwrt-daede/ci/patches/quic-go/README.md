@@ -6,9 +6,10 @@ alive. See `../../PERF-PATCHES.md` for the full lineage and refresh procedure.
 
 ## Current state: empty (nothing to carry)
 
-`QUICGO_BASE_COMMIT` is `6e2cee47210c` (`olicesx/quic-go`, branch
-`perf/datagram-pool`), which already contains all four patches this directory
-used to carry:
+`QUICGO_BASE_COMMIT` is `08e975ef39de` (`olicesx/quic-go`, branch
+`fix/audit-remediation`), which already contains all four historical patches
+this directory used to carry, plus the later QUIC security, buffer ownership
+and GSO capacity fixes:
 
 | was | effect | status |
 |-----|--------|--------|
@@ -18,13 +19,15 @@ used to carry:
 | 0004 | RTT sample only for last ack-eliciting packet | in base |
 
 They were removed when the base moved forward on 2026-07-31; re-applying them
-would conflict. The mechanism stays: drop `NNNN-*.patch` files here and the
-assemble workflows pick them up automatically (an empty directory is skipped).
+would conflict. The 2026-08-28 base moved forward again because outbound now
+requires `08e975ef39de`. The mechanism stays: drop `NNNN-*.patch` files here
+and the assemble workflows pick them up automatically (an empty directory is
+skipped).
 
 ## Why the base is a feature branch
 
-`daeuniverse/outbound` pins quic-go by pseudo-version in its `go.mod`, and the
-commit it needs currently lives only on `perf/datagram-pool`, not on `main`.
+The outbound fork pins quic-go by pseudo-version in its `go.mod`, and the
+commit it needs currently lives on `fix/audit-remediation`, not on `main`.
 `QUICGO_BASE_COMMIT` must equal that target — `auto-bump.yml` refuses to move
 `OUTBOUND_COMMIT` when the two diverge, which is exactly the breakage that took
 dae/daed builds down on 2026-07-31 (`ReleaseDatagram undefined`).

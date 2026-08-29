@@ -1,21 +1,36 @@
 name: Auto bump dae/daed
 
-# Tracks the aggressive combo (daeuniverse + olicesx perf forks), gates on a real
-# SDK build, and only then publishes. main stays clean until the gate is green:
-# all work happens on auto-bump-staging; main is fast-forwarded only on success.
+# Tracks daeuniverse core frequently and the olicesx perf combo weekly, gates on
+# a real SDK build, and only then publishes. main stays clean until the gate is
+# green: each run uses its own auto-bump-staging-* branch; main is fast-forwarded
+# only from the exact SHA that passed the gate.
 
 on:
   schedule:
     - cron: '30 */6 * * *'
+    - cron: '30 19 * * 0'
   workflow_dispatch:
+    inputs:
+      lane:
+        description: Upstream sync lane
+        required: true
+        default: core
+        type: choice
+        options:
+          - core
+          - perf
 
 permissions:
   contents: write
   actions: write
   issues: write
 
+concurrency:
+  group: auto-bump-dae-daed
+  cancel-in-progress: false
+
 env:
-  STAGING: auto-bump-staging
+  STAGING: auto-bump-staging-${{ github.run_id }}-${{ github.run_attempt }}
 
 jobs:
   bump:
@@ -25,130 +40,373 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Select sync lane
+        id: lane
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SCHEDULE: ${{ github.event.schedule }}
+          REQUESTED_LANE: ${{ inputs.lane }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = workflow_dispatch ]; then
+            lane="$REQUESTED_LANE"
+          elif [ "$EVENT_NAME" = schedule ] && [ "$SCHEDULE" = '30 19 * * 0' ]; then
+            lane=perf
+          else
+            lane=core
+          fi
+          echo "lane=$lane" >> "$GITHUB_OUTPUT"
+          echo "Selected $lane lane."
+
       - name: Detect upstream changes
         id: detect
         env:
           GH_TOKEN: ${{ github.token }}
+          LANE: ${{ steps.lane.outputs.lane }}
         run: |
-          set -eu
+          set -euo pipefail
           . ci/pins.env
-          daed_new=$(git ls-remote https://github.com/daeuniverse/daed HEAD | cut -f1)
-          wing_new=$(git ls-remote https://github.com/daeuniverse/dae-wing HEAD | cut -f1)
-          # route A: track upstream dae main (merged onto the olicesx perf base at
-          # assemble time), not the olicesx kdae fork, so the core stays fresh.
-          core_up_new=$(git ls-remote https://github.com/daeuniverse/dae main | cut -f1)
-          outbound_new=$(git ls-remote https://github.com/olicesx/outbound perf/complete-optimizations | cut -f1)
-          # quic-go is not auto-tracked, but outbound pins it by pseudo-version:
-          # bumping outbound past our QUICGO_BASE_COMMIT breaks the build (2026-07-31,
-          # ReleaseDatagram undefined), so hold outbound until the bases are refreshed.
-          outbound_wants=$(curl -fsSL "https://raw.githubusercontent.com/olicesx/outbound/${outbound_new}/go.mod" \
-            | grep -E '^replace .*olicesx/quic-go' \
-            | sed -E 's/.*-([0-9a-f]{12})[[:space:]]*$/\1/' | tail -1)
-          ours_quicgo="$(printf '%s' "$QUICGO_BASE_COMMIT" | cut -c1-12)"
-          if [ -n "$outbound_wants" ] && [ "$outbound_wants" != "$ours_quicgo" ]; then
-            echo "::warning::outbound ${outbound_new} needs quic-go ${outbound_wants}, ours is ${ours_quicgo}; holding outbound."
-            echo "quicgo_mismatch=$outbound_wants" >> "$GITHUB_OUTPUT"
-            outbound_new="$OUTBOUND_COMMIT"
-          fi
-          if [ "$daed_new" = "$DAED_COMMIT" ] && [ "$wing_new" = "$WING_COMMIT" ] \
-             && [ "$core_up_new" = "$CORE_UPSTREAM_COMMIT" ] && [ "$outbound_new" = "$OUTBOUND_COMMIT" ]; then
-            echo "No upstream change."
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          daed_date=$(gh api repos/daeuniverse/daed/commits/$daed_new --jq '.commit.committer.date' | cut -dT -f1 | tr '-' '.')
-          wing_date=$(gh api repos/daeuniverse/dae-wing/commits/$wing_new --jq '.commit.committer.date' | cut -dT -f1 | tr '-' '.')
-          core_date=$(gh api repos/daeuniverse/dae/commits/$core_up_new --jq '.commit.committer.date' | cut -dT -f1 | tr '-' '.')
-          outbound_date=$(gh api repos/olicesx/outbound/commits/$outbound_new --jq '.commit.committer.date' | cut -dT -f1 | tr '-' '.')
-          # version = newest component date (YYYY.MM.DD sorts chronologically), used
-          # for BOTH dae and daed so the stamp never regresses when only the core moves.
-          ver=$(printf '%s\n%s\n%s\n%s\n' "$daed_date" "$wing_date" "$core_date" "$outbound_date" | sort -r | head -1)
           changes=""
+          require_sha() {
+            if ! [[ "$1" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "::error::$2 is not a full 40-character commit SHA: ${1:-<empty>}"
+              exit 1
+            fi
+          }
+          require_date() {
+            if ! [[ "$1" =~ ^[0-9]{4}\.[0-9]{2}\.[0-9]{2}$ ]]; then
+              echo "::error::$2 is not YYYY.MM.DD: ${1:-<empty>}"
+              exit 1
+            fi
+          }
           add_change() {
             [ "$2" = "$3" ] && return 0
             changes="${changes:+$changes, }$1 $(printf '%s' "$2" | cut -c1-7)→$(printf '%s' "$3" | cut -c1-7)"
           }
-          add_change daed "$DAED_COMMIT" "$daed_new"
-          add_change wing "$WING_COMMIT" "$wing_new"
-          add_change core "$CORE_UPSTREAM_COMMIT" "$core_up_new"
-          add_change outbound "$OUTBOUND_COMMIT" "$outbound_new"
-          {
-            echo "changed=true"
-            echo "daed=$daed_new"; echo "wing=$wing_new"; echo "core_up=$core_up_new"
-            echo "outbound=$outbound_new"
-            echo "ver=$ver"
-            echo "changes=$changes"
-          } >> "$GITHUB_OUTPUT"
+          require_date "$DAE_VERSION" DAE_VERSION
+
+          case "$LANE" in
+            core)
+              daed_new=$(git ls-remote https://github.com/daeuniverse/daed HEAD | cut -f1)
+              wing_new=$(git ls-remote https://github.com/daeuniverse/dae-wing HEAD | cut -f1)
+              # Route A: track upstream dae main (merged onto the frozen olicesx
+              # perf base at assemble time), so the core stays fresh.
+              core_up_new=$(git ls-remote https://github.com/daeuniverse/dae main | cut -f1)
+              require_sha "$daed_new" daed
+              require_sha "$wing_new" dae-wing
+              require_sha "$core_up_new" dae-core
+              if [ "$daed_new" = "$DAED_COMMIT" ] && [ "$wing_new" = "$WING_COMMIT" ] \
+                 && [ "$core_up_new" = "$CORE_UPSTREAM_COMMIT" ]; then
+                echo "No core upstream change."
+                echo "changed=false" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+              daed_date=$(gh api "repos/daeuniverse/daed/commits/$daed_new" --jq '.commit.committer.date' | cut -dT -f1 | tr '-' '.')
+              wing_date=$(gh api "repos/daeuniverse/dae-wing/commits/$wing_new" --jq '.commit.committer.date' | cut -dT -f1 | tr '-' '.')
+              core_date=$(gh api "repos/daeuniverse/dae/commits/$core_up_new" --jq '.commit.committer.date' | cut -dT -f1 | tr '-' '.')
+              require_date "$daed_date" daed-date
+              require_date "$wing_date" wing-date
+              require_date "$core_date" core-date
+              ver=$(printf '%s\n%s\n%s\n%s\n' "$DAE_VERSION" "$daed_date" "$wing_date" "$core_date" | sort -r | head -1)
+              require_date "$ver" core-version
+              add_change daed "$DAED_COMMIT" "$daed_new"
+              add_change wing "$WING_COMMIT" "$wing_new"
+              add_change core "$CORE_UPSTREAM_COMMIT" "$core_up_new"
+              {
+                echo "changed=true"
+                echo "daed=$daed_new"
+                echo "wing=$wing_new"
+                echo "core_up=$core_up_new"
+                echo "ver=$ver"
+                echo "changes=$changes"
+              } >> "$GITHUB_OUTPUT"
+              ;;
+            perf)
+              outbound_new=$(git ls-remote https://github.com/olicesx/outbound perf/complete-optimizations | cut -f1)
+              require_sha "$outbound_new" outbound
+              quicgo_suffix=$(curl -fsSL "https://raw.githubusercontent.com/olicesx/outbound/${outbound_new}/go.mod" \
+                | sed -nE '/^replace .*olicesx\/quic-go/ s/.*-([0-9a-f]{12})[[:space:]]*$/\1/p' | tail -1)
+              if ! [[ "$quicgo_suffix" =~ ^[0-9a-f]{12}$ ]]; then
+                echo "::error::cannot parse the quic-go commit from outbound ${outbound_new}"
+                exit 1
+              fi
+              quicgo_new=$(gh api "repos/olicesx/quic-go/commits/$quicgo_suffix" --jq '.sha')
+              require_sha "$quicgo_new" quic-go
+              if [ "$outbound_new" = "$OUTBOUND_COMMIT" ] \
+                 && [ "$quicgo_new" = "$QUICGO_BASE_COMMIT" ] \
+                 && [ "$quicgo_new" = "$QUICGO_PERF_TIP" ]; then
+                echo "No perf upstream change."
+                echo "changed=false" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+              outbound_date=$(gh api "repos/olicesx/outbound/commits/$outbound_new" --jq '.commit.committer.date' | cut -dT -f1 | tr '-' '.')
+              quicgo_date=$(gh api "repos/olicesx/quic-go/commits/$quicgo_new" --jq '.commit.committer.date' | cut -dT -f1 | tr '-' '.')
+              require_date "$outbound_date" outbound-date
+              require_date "$quicgo_date" quic-go-date
+              ver=$(printf '%s\n%s\n%s\n' "$DAE_VERSION" "$outbound_date" "$quicgo_date" | sort -r | head -1)
+              require_date "$ver" perf-version
+              add_change outbound "$OUTBOUND_COMMIT" "$outbound_new"
+              if [ "$QUICGO_BASE_COMMIT" != "$quicgo_new" ] \
+                 || [ "$QUICGO_PERF_TIP" != "$quicgo_new" ]; then
+                old_quicgo="$(printf '%.7s/%.7s' "$QUICGO_BASE_COMMIT" "$QUICGO_PERF_TIP")"
+                changes="${changes:+$changes, }quic-go ${old_quicgo}→$(printf '%s' "$quicgo_new" | cut -c1-7)"
+              fi
+              {
+                echo "changed=true"
+                echo "outbound=$outbound_new"
+                echo "quicgo=$quicgo_new"
+                echo "ver=$ver"
+                echo "changes=$changes"
+              } >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::unknown sync lane: $LANE"
+              exit 1
+              ;;
+          esac
 
       - name: Sync kenzok8 forks from olicesx
         if: steps.detect.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ secrets.FORK_SYNC_TOKEN }}
+          LANE: ${{ steps.lane.outputs.lane }}
+          QUICGO_COMMIT: ${{ steps.detect.outputs.quicgo }}
         run: |
+          set -euo pipefail
+          if [ "$LANE" = core ]; then
+            # Mirror kdae as delete-insurance; builds still pin frozen CORE_COMMIT.
+            gh repo sync kenzok8/dae -b kdae --source olicesx/dae --force
+            exit 0
+          fi
+          if ! [[ "$QUICGO_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::quic-go is not a full 40-character commit SHA: ${QUICGO_COMMIT:-<empty>}"
+            exit 1
+          fi
+
           gh repo sync kenzok8/outbound -b perf/complete-optimizations --source olicesx/outbound --force
-          # dae core: mirror kdae as delete-insurance; build still pins frozen CORE_COMMIT (an ancestor of kdae), so output is unchanged.
-          gh repo sync kenzok8/dae -b kdae --source olicesx/dae --force
-          # quic-go: mirror the branch QUICGO_BASE_COMMIT lives on — assemble fetches it from our fork.
-          gh repo sync kenzok8/quic-go -b perf/skip-addr-parse --source olicesx/quic-go --force
+          # Keep every pinned quic-go object on an immutable fork ref; the short
+          # alias is only a convenience and is never its sole long-term reference.
+          temp_dir=$(mktemp -d)
+          trap 'rm -rf "$temp_dir"' EXIT
+          git init -q "$temp_dir/quic-go"
+          git -C "$temp_dir/quic-go" remote add upstream https://github.com/olicesx/quic-go.git
+          git -C "$temp_dir/quic-go" fetch -q --no-tags --depth=1 upstream "$QUICGO_COMMIT"
+          fetched_quicgo=$(git -C "$temp_dir/quic-go" rev-parse FETCH_HEAD)
+          if ! [[ "$fetched_quicgo" =~ ^[0-9a-f]{40}$ ]] || [ "$fetched_quicgo" != "$QUICGO_COMMIT" ]; then
+            echo "::error::fetched quic-go $fetched_quicgo, expected $QUICGO_COMMIT"
+            exit 1
+          fi
+          git -C "$temp_dir/quic-go" remote add origin https://github.com/kenzok8/quic-go.git
+          immutable_branch="daede-pinned-${QUICGO_COMMIT}"
+          immutable_sha=$(git -C "$temp_dir/quic-go" ls-remote --heads origin "refs/heads/$immutable_branch" | cut -f1)
+          if [ -n "$immutable_sha" ]; then
+            if ! [[ "$immutable_sha" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "::error::$immutable_branch resolved to an invalid SHA: $immutable_sha"
+              exit 1
+            fi
+            if [ "$immutable_sha" != "$QUICGO_COMMIT" ]; then
+              echo "::error::$immutable_branch already points to $immutable_sha, expected $QUICGO_COMMIT"
+              exit 1
+            fi
+            echo "$immutable_branch already preserves $QUICGO_COMMIT."
+          else
+            git -C "$temp_dir/quic-go" -c credential.helper='!gh auth git-credential' \
+              push origin "FETCH_HEAD:refs/heads/$immutable_branch"
+          fi
+          git -C "$temp_dir/quic-go" -c credential.helper='!gh auth git-credential' \
+            push --force origin "FETCH_HEAD:refs/heads/daede-pinned"
 
       - name: Stage new pins
+        id: stage
         if: steps.detect.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          LANE: ${{ steps.lane.outputs.lane }}
           V: ${{ steps.detect.outputs.ver }}
         run: |
-          set -eu
-          sed -i \
-            -e "s/^DAE_VERSION=.*/DAE_VERSION=$V/" \
-            -e "s/^DAED_VERSION=.*/DAED_VERSION=$V/" \
-            -e "s/^DAED_COMMIT=.*/DAED_COMMIT=${{ steps.detect.outputs.daed }}/" \
-            -e "s/^WING_COMMIT=.*/WING_COMMIT=${{ steps.detect.outputs.wing }}/" \
-            -e "s/^CORE_UPSTREAM_COMMIT=.*/CORE_UPSTREAM_COMMIT=${{ steps.detect.outputs.core_up }}/" \
-            -e "s/^OUTBOUND_COMMIT=.*/OUTBOUND_COMMIT=${{ steps.detect.outputs.outbound }}/" \
-            ci/pins.env
+          set -euo pipefail
+          case "$LANE" in
+            core)
+              sed -i \
+                -e "s/^DAE_VERSION=.*/DAE_VERSION=$V/" \
+                -e "s/^DAED_VERSION=.*/DAED_VERSION=$V/" \
+                -e "s/^DAED_COMMIT=.*/DAED_COMMIT=${{ steps.detect.outputs.daed }}/" \
+                -e "s/^WING_COMMIT=.*/WING_COMMIT=${{ steps.detect.outputs.wing }}/" \
+                -e "s/^CORE_UPSTREAM_COMMIT=.*/CORE_UPSTREAM_COMMIT=${{ steps.detect.outputs.core_up }}/" \
+                ci/pins.env
+              ;;
+            perf)
+              sed -i \
+                -e "s/^DAE_VERSION=.*/DAE_VERSION=$V/" \
+                -e "s/^DAED_VERSION=.*/DAED_VERSION=$V/" \
+                -e "s/^OUTBOUND_COMMIT=.*/OUTBOUND_COMMIT=${{ steps.detect.outputs.outbound }}/" \
+                -e "s/^QUICGO_BASE_COMMIT=.*/QUICGO_BASE_COMMIT=${{ steps.detect.outputs.quicgo }}/" \
+                -e "s/^QUICGO_PERF_TIP=.*/QUICGO_PERF_TIP=${{ steps.detect.outputs.quicgo }}/" \
+                ci/pins.env
+              ;;
+          esac
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -B "$STAGING"
           git add ci/pins.env
           git commit -m "chore: bump pins (${{ steps.detect.outputs.changes }})"
-          git push -f origin "$STAGING"
+          staging_sha=$(git rev-parse HEAD)
+          if ! [[ "$staging_sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::staging commit is not a full 40-character SHA: $staging_sha"
+            exit 1
+          fi
+          git push --force origin "HEAD:refs/heads/$STAGING"
+          echo "staging_sha=$staging_sha" >> "$GITHUB_OUTPUT"
 
       - name: Assemble + gate build on staging
+        id: gate
         if: steps.detect.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          INITIAL_SHA: ${{ steps.stage.outputs.staging_sha }}
         run: |
-          set -eu
-          run_and_wait() { # <workflow-file> [extra dispatch args...]
-            gh workflow run "$1" --ref "$STAGING" "${@:2}"
-            sleep 12
-            LAST_RUN_ID=$(gh run list --workflow "$1" --branch "$STAGING" --limit 1 --json databaseId --jq '.[0].databaseId')
-            echo "watching $1 run $LAST_RUN_ID"
-            gh run watch "$LAST_RUN_ID" --exit-status
+          set -euo pipefail
+          require_sha() {
+            if ! [[ "$1" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "::error::$2 is not a full 40-character commit SHA: ${1:-<empty>}"
+              exit 1
+            fi
           }
-          run_and_wait assemble-dae-src.yml
-          run_and_wait assemble-daed-src.yml
+          fetch_staging_sha() {
+            git fetch -q --force origin "refs/heads/$STAGING"
+            fetched_sha=$(git rev-parse FETCH_HEAD)
+            require_sha "$fetched_sha" staging
+            printf '%s\n' "$fetched_sha"
+          }
+          run_and_wait() { # <workflow-file> <expected-sha> [dispatch args...]
+            workflow=$1
+            expected_sha=$2
+            shift 2
+            require_sha "$expected_sha" "$workflow expected head"
+            remote_sha=$(fetch_staging_sha)
+            if [ "$remote_sha" != "$expected_sha" ]; then
+              echo "::error::$STAGING moved to $remote_sha before dispatching $workflow; expected $expected_sha"
+              exit 1
+            fi
+            gh workflow run "$workflow" --ref "$STAGING" "$@"
+            run_id=""
+            for _ in {1..60}; do
+              run_id=$(gh run list --workflow "$workflow" --branch "$STAGING" \
+                --event workflow_dispatch --limit 20 --json databaseId,headSha \
+                --jq "map(select(.headSha == \"$expected_sha\")) | first | .databaseId // empty")
+              [ -n "$run_id" ] && break
+              sleep 2
+            done
+            if ! [[ "$run_id" =~ ^[0-9]+$ ]]; then
+              echo "::error::cannot find $workflow run for $STAGING at $expected_sha"
+              exit 1
+            fi
+            actual_sha=$(gh run view "$run_id" --json headSha --jq '.headSha')
+            require_sha "$actual_sha" "$workflow run head"
+            if [ "$actual_sha" != "$expected_sha" ]; then
+              echo "::error::$workflow run $run_id uses $actual_sha, expected $expected_sha"
+              exit 1
+            fi
+            echo "watching $workflow run $run_id at $expected_sha"
+            gh run watch "$run_id" --exit-status
+            LAST_RUN_ID=$run_id
+          }
+
+          require_sha "$INITIAL_SHA" initial-staging
+          current_sha=$(fetch_staging_sha)
+          if [ "$current_sha" != "$INITIAL_SHA" ]; then
+            echo "::error::$STAGING starts at $current_sha, expected $INITIAL_SHA"
+            exit 1
+          fi
+          run_and_wait assemble-dae-src.yml "$current_sha"
+          current_sha=$(fetch_staging_sha)
+          run_and_wait assemble-daed-src.yml "$current_sha"
+          tested_sha=$(fetch_staging_sha)
           # gate: real SDK compile, no publish. gh-action-sdk exits 0 on failure, so assert the packages exist.
-          run_and_wait test-daed-build.yml -f packages="dae daed"
+          run_and_wait test-daed-build.yml "$tested_sha" -f packages="dae daed"
+          gate_run_id=$LAST_RUN_ID
+          after_gate_sha=$(fetch_staging_sha)
+          if [ "$after_gate_sha" != "$tested_sha" ]; then
+            echo "::error::$STAGING moved to $after_gate_sha after gate tested $tested_sha"
+            exit 1
+          fi
           rm -rf gate-artifacts
-          gh run download "$LAST_RUN_ID" -D gate-artifacts
+          gh run download "$gate_run_id" -D gate-artifacts
           for pkg in dae daed; do
-            find gate-artifacts -name "${pkg}-*.apk" -o -name "${pkg}_*.ipk" | grep -q . || {
+            find gate-artifacts \( -name "${pkg}-*.apk" -o -name "${pkg}_*.ipk" \) -print -quit | grep -q . || {
               echo "gate failed: $pkg produced no package"; exit 1; }
           done
+          echo "tested_sha=$tested_sha" >> "$GITHUB_OUTPUT"
 
       - name: Promote to main and publish
         if: steps.detect.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          TESTED_SHA: ${{ steps.gate.outputs.tested_sha }}
         run: |
-          set -eu
-          git fetch origin "$STAGING"
-          git push origin "origin/$STAGING:main"
-          # Dispatch from the already-stable staging ref. Immediately resolving
-          # main after the push can briefly return its previous SHA.
-          gh workflow run release.yml --ref "$STAGING" -f prerelease=false || \
-            gh workflow run release.yml --ref "$STAGING"
+          set -euo pipefail
+          require_sha() {
+            if ! [[ "$1" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "::error::$2 is not a full 40-character commit SHA: ${1:-<empty>}"
+              exit 1
+            fi
+          }
+          require_sha "$TESTED_SHA" tested
+          git cat-file -e "$TESTED_SHA^{commit}"
+          staging_sha=$(git ls-remote origin "refs/heads/$STAGING" | cut -f1)
+          require_sha "$staging_sha" staging
+          if [ "$staging_sha" != "$TESTED_SHA" ]; then
+            echo "::error::$STAGING is $staging_sha, but gate tested $TESTED_SHA"
+            exit 1
+          fi
+          git push origin "$TESTED_SHA:refs/heads/main"
+          main_sha=$(git ls-remote origin refs/heads/main | cut -f1)
+          require_sha "$main_sha" main
+          if [ "$main_sha" != "$TESTED_SHA" ]; then
+            echo "::error::main is $main_sha after promoting $TESTED_SHA"
+            exit 1
+          fi
+
+          gh workflow run release.yml --ref "$STAGING" -f prerelease=false
+          release_run_id=""
+          for _ in {1..60}; do
+            release_run_id=$(gh run list --workflow release.yml --branch "$STAGING" \
+              --event workflow_dispatch --limit 20 --json databaseId,headSha \
+              --jq "map(select(.headSha == \"$TESTED_SHA\")) | first | .databaseId // empty")
+            [ -n "$release_run_id" ] && break
+            sleep 2
+          done
+          if ! [[ "$release_run_id" =~ ^[0-9]+$ ]]; then
+            echo "::error::cannot find release.yml run for $STAGING at $TESTED_SHA"
+            exit 1
+          fi
+          release_sha=$(gh run view "$release_run_id" --json headSha --jq '.headSha')
+          require_sha "$release_sha" release-run
+          if [ "$release_sha" != "$TESTED_SHA" ]; then
+            echo "::error::release run $release_run_id uses $release_sha, expected $TESTED_SHA"
+            exit 1
+          fi
+          echo "release.yml run $release_run_id dispatched from $STAGING at $TESTED_SHA"
+          # Keep the unique ref until checkout and publishing finish; the cleanup
+          # step may then remove it without racing the dispatched workflow.
+          gh run watch "$release_run_id" --exit-status
+
+      - name: Clean up staging branch
+        if: always() && steps.detect.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$STAGING" =~ ^auto-bump-staging-[0-9]+-[0-9]+$ ]]; then
+            echo "::error::refusing to delete unexpected staging branch: $STAGING"
+            exit 1
+          fi
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$STAGING" >/dev/null 2>&1; then
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$STAGING"
+            echo "Deleted $STAGING."
+          else
+            echo "$STAGING does not exist; nothing to clean."
+          fi
 
   patch-absorbed:
     runs-on: ubuntu-latest
@@ -160,27 +418,65 @@ jobs:
         run: |
           set -eu
           absorbed=""
-          scan() { # <pkgdir> <src subdir inside the tarball>
-            makefile="$1/Makefile"
+          scan() { # <pkgdir> <src subdir inside the tarball> <patch dirs...>
+            pkg="$1"
+            makefile="$pkg/Makefile"
+            srcdir="$2"
+            shift 2
             src=$(sed -n 's/^PKG_SOURCE:=//p' "$makefile")
             url=$(sed -n 's/^PKG_SOURCE_URL:=//p' "$makefile")
             ver=$(sed -n 's/^PKG_VERSION:=//p' "$makefile")
-            [ -n "$src" ] && [ -n "$url" ] || return 0
+            [ -n "$src" ] && [ -n "$url" ] || {
+              echo "::error::cannot resolve source for $pkg"; return 1; }
             rm -rf scan-src scan.tar.gz
-            curl -fsSL -o scan.tar.gz "$url/$src" || return 0
+            curl -fsSL -o scan.tar.gz "$url/$src"
             mkdir scan-src
             tar xzf scan.tar.gz -C scan-src
-            d="scan-src/$1-$ver/$2"
-            [ -d "$d" ] || return 0
-            for p in "$1"/patches/*.patch; do
+            d="scan-src/$pkg-$ver/$srcdir"
+            [ -d "$d" ] || {
+              echo "::error::missing source directory $d"; return 1; }
+            for patch_dir in "$@"; do
+              for p in "$pkg"/"$patch_dir"/*.patch; do
+                [ -f "$p" ] || continue
+                if patch -p1 -d "$d" --dry-run -R -f <"$p" >/dev/null 2>&1; then
+                  absorbed="${absorbed}\n- \`$p\`"
+                elif patch -p1 -d "$d" --dry-run -f <"$p" >/dev/null 2>&1; then
+                  patch -p1 -d "$d" -f <"$p" >/dev/null
+                else
+                  echo "::error::$p neither reverse-applies nor forward-applies"
+                  return 1
+                fi
+              done
+            done
+          }
+          scan_git() { # <name> <repo> <commit> <patch dir>
+            name="$1"
+            repo="$2"
+            commit="$3"
+            patch_dir="$4"
+            d="scan-git/$name"
+            rm -rf "$d"
+            git init -q "$d"
+            git -C "$d" remote add origin "$repo"
+            git -C "$d" fetch -q --depth=1 origin "$commit"
+            git -C "$d" checkout -q FETCH_HEAD
+            for p in "$patch_dir"/*.patch; do
               [ -f "$p" ] || continue
-              if patch -p1 -d "$d" --dry-run -R -f <"$p" >/dev/null 2>&1; then
+              if git -C "$d" apply --check -R "$GITHUB_WORKSPACE/$p" >/dev/null 2>&1; then
                 absorbed="${absorbed}\n- \`$p\`"
+              elif git -C "$d" apply --check "$GITHUB_WORKSPACE/$p" >/dev/null 2>&1; then
+                git -C "$d" apply "$GITHUB_WORKSPACE/$p"
+              else
+                echo "::error::$p neither reverse-applies nor forward-applies"
+                return 1
               fi
             done
           }
-          scan dae core
-          scan daed wing
+          . ci/pins.env
+          scan dae core patches patches_arm
+          scan daed wing patches patches_arm
+          scan_git outbound https://github.com/kenzok8/outbound "$OUTBOUND_COMMIT" ci/patches/outbound
+          scan_git quic-go https://github.com/kenzok8/quic-go "$QUICGO_BASE_COMMIT" ci/patches/quic-go
           title="🧹 patches: upstream absorbed some of ours"
           existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "upstream absorbed in:title" --json number --jq '.[0].number' 2>/dev/null || echo "")
           if [ -z "$absorbed" ]; then
@@ -190,63 +486,6 @@ jobs:
           fi
           echo "::warning::these patches already exist upstream and can be dropped."
           body=$(printf 'Automated check (auto-bump.yml).\n\nThese patches reverse-apply cleanly against the pinned source, meaning upstream already carries them. Keeping them risks a conflict on the next bump:\n%b\n\nDrop them (and bump PKG_RELEASE) after confirming the feature is still present.' "$absorbed")
-          if [ -n "$existing" ]; then
-            gh issue edit "$existing" --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
-          else
-            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
-          fi
-
-  # Independent watchdog: our quic-go = QUICGO_BASE + ci/patches/quic-go. The
-  # binding constraint is the quic-go that olicesx/outbound requires, since we
-  # track its perf branch and it runs ahead of daeuniverse/dae main. When it moves
-  # past our base, auto-bump holds outbound and this opens the refresh reminder
-  # (ci/PERF-PATCHES.md). Comparing to quic-go/quic-go releases is meaningless:
-  # the perf lineage is an old, API-incompatible base on purpose. Never blocks.
-  perf-staleness:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - name: Check quic-go vs what outbound requires
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -eu
-          . ci/pins.env
-          # the quic-go commit olicesx/outbound's perf branch pins (go.mod replace target)
-          want=$(curl -fsSL https://raw.githubusercontent.com/olicesx/outbound/perf/complete-optimizations/go.mod \
-            | grep -E '^replace .*olicesx/quic-go' \
-            | sed -E 's/.*-([0-9a-f]{12})[[:space:]]*$/\1/' | tail -1)
-          ours="$(printf '%s' "$QUICGO_PERF_TIP" | cut -c1-12)"
-          echo "outbound requires quic-go ...${want:-?} ; ours reproduces ...${ours}"
-          contains=""
-          if [ -n "$want" ] && [ "$want" != "$ours" ]; then
-            st=$(gh api "repos/${GITHUB_REPOSITORY_OWNER}/quic-go/compare/${want}...${QUICGO_BASE_COMMIT}" \
-                   --jq '.status' 2>/dev/null || echo "")
-            case "$st" in
-              identical|ahead) contains=1; echo "our base already contains ...${want} (compare: ${st})" ;;
-            esac
-          fi
-          if [ -z "$want" ] || [ "$want" = "$ours" ] || [ -n "$contains" ]; then
-            echo "quic-go in sync with outbound; no alert."
-            # auto-close a stale tracking issue if one is open
-            n=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 --json number,title \
-                  --jq 'map(select(.title | test("^⚠️ quic-go: outbound moved to "))) | .[0].number // empty')
-            [ -n "$n" ] && gh issue close "$n" --repo "$GITHUB_REPOSITORY" -c "Back in sync with outbound's quic-go; auto-closing." || true
-            exit 0
-          fi
-          echo "::warning::outbound moved quic-go to ${want}; refresh QUICGO_BASE_COMMIT per ci/PERF-PATCHES.md."
-          title="⚠️ quic-go: outbound moved to ${want}"
-          body=$(printf '%s\n' \
-            "Automated check (auto-bump.yml)." \
-            "" \
-            "- **olicesx/outbound** \`perf/complete-optimizations\` now requires quic-go \`...${want}\`" \
-            "- our base+patches reproduce \`...${ours}\` (QUICGO_PERF_TIP)" \
-            "" \
-            "Until these match, auto-bump holds OUTBOUND_COMMIT and dae/daed stay on the" \
-            "last good combo. Refresh following ci/PERF-PATCHES.md, then update" \
-            "QUICGO_BASE_COMMIT + QUICGO_PERF_TIP. Heads-up, not an emergency.")
-          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 --json number,title \
-                       --jq 'map(select(.title | test("^⚠️ quic-go: outbound moved to "))) | .[0].number // empty')
           if [ -n "$existing" ]; then
             gh issue edit "$existing" --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
           else

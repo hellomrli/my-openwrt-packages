@@ -1,117 +1,81 @@
 # Performance fork maintenance — quic-go / outbound
 
-This repo's "aggressive" build replaces dae's QUIC + outbound deps with
-performance forks. Upstream (olicesx) has gone quiet, so this file is the
-self-maintenance playbook: what the perf delta actually is, and how to refresh
-it ourselves when needed.
+The aggressive build replaces dae's QUIC and outbound dependencies with the
+olicesx performance forks. Pins live in `ci/pins.env`; assemble workflows fetch
+them from the `kenzok8/*` mirrors so a disappearing upstream branch cannot break
+an old release.
 
-Pins live in `ci/pins.env`; the build pulls them from the `kenzok8/*` mirrors
-(synced from `olicesx/*` by `.github/workflows/auto-bump.yml`).
+## Pinned performance pair
 
-## Dependency lineage
+`ci/pins.env` is the only source of truth for the current outbound and quic-go
+commits. Do not copy current commit IDs into this document; the weekly perf lane
+may move them.
 
-```
-official quic-go (v0.60.x, moves weekly)
-        │  (dae uses a very old, heavily-patched base — APIs differ by ~38 minor versions)
-        ▼
-daeuniverse/quic-go  branch "sid"  (2025-02, the maintained dae base)
-        │  olicesx cherry-picks newer upstream fixes on top
-        ▼
-olicesx/quic-go  branch "enhanced-with-fixes"  (base ~2026-02, module renamed github.com/olicesx/quic-go)
-        │  + 3 perf commits
-        ▼
-olicesx/quic-go  branch "perf/node-pooling-v2"  (= our base 33005db + the 4 patches)
-```
+`OUTBOUND_COMMIT`, `QUICGO_BASE_COMMIT` and `QUICGO_PERF_TIP` form one pinned
+set. Both quic-go values must use the full commit required by outbound's
+`go.mod`, so all three pins move together.
 
-Key facts that shape any "update":
+`olicesx/quic-go` is not a GitHub fork of `quic-go/quic-go`; its module name and
+history differ. Do not rebase it onto an official quic-go tag. A refresh means
+using the exact commit required by outbound, or backporting a specific official
+fix onto this lineage.
 
-- `olicesx/quic-go` is **not** a GitHub fork of `quic-go/quic-go` (`fork:false`,
-  `parent:null`, module renamed). Its history does **not** share commits with
-  official quic-go, so you cannot `git rebase` onto an official tag — refreshing
-  means **cherry-picking / backporting specific upstream fixes** onto
-  `enhanced-with-fixes`, not moving the base.
-- There is **no fresher ready-made base** in the dae→olicesx chain:
-  `enhanced-with-fixes` (2026-02) is already ahead of `daeuniverse/quic-go@sid`
-  (2025-02). To go fresher you must do the cherry-pick work yourself.
-- dae-core (`kdae`) is tied to this old quic-go API. Bumping to official v0.60
-  would mean porting dae-core, not just the dep — out of scope.
+## Self-owned patches that must survive every sync
 
-## The perf delta we must preserve
+The repository currently carries 17 patch files:
 
-`olicesx/quic-go`  `main` → `perf/node-pooling-v2` = **4 commits, 5 files**:
+- `dae/patches`: 1 regular dae patch.
+- `dae/patches_arm`: 2 ARM32 compatibility patches.
+- `daed/patches`: 11 daed reliability and update patches.
+- `daed/patches_arm`: 2 ARM32 compatibility patches for the embedded dae core.
+- `ci/patches/outbound`: 1 SSR buffered-reader fix.
+- `ci/patches/quic-go`: currently empty; retained for future backports.
 
-| commit | date | what |
-|--------|------|------|
-| `bb65418` | 2026-02-26 | fix: improve UDP GSO handling (single-segment sends) — this is the `enhanced-with-fixes` HEAD |
-| `254bec0d` | 2026-04-28 | perf: B-tree node pooling + frame sorter optimizations |
-| `7d0a3176` | 2026-04-28 | fix: return stream frames to pool on cancellations |
-| `e0d255ff` | 2026-04-28 | fix: only generate RTT sample for last ack-eliciting packet |
+On 2026-08-28 every patch was checked against the pinned upstream source. None
+was equivalently absorbed, and all 17 remain required. In particular, outbound
+still lacks the SSR `unwrapConn` fix.
 
-Files touched (the entire perf surface):
+The `patch-absorbed` job in `auto-bump.yml` checks every regular, ARM, outbound
+and quic-go patch in package order. It reports a patch when reverse apply starts
+passing, applies every still-required patch forward, and fails instead of
+silently skipping a source it cannot fetch or patch. Confirm the behavior in
+upstream before deleting a reported local patch.
 
-```
-frame_sorter.go
-internal/ackhandler/sent_packet_handler.go
-internal/utils/tree/tree.go            (B-tree pool — the big one, +57/-25)
-send_stream.go
-sys_conn_oob.go                        (UDP GSO)
-```
+## Refresh procedure
 
-Because the surface is tiny and self-contained, reapplying these commits on top
-of any refreshed base is a ~1h job.
+1. Sync `olicesx/outbound:perf/complete-optimizations` to the matching
+   `perf/complete-optimizations` branch in `kenzok8/outbound`.
+2. Read `go.mod` at the selected outbound commit, extract the 12-character
+   quic-go suffix from its pseudo-version, and resolve it to a full 40-character
+   commit in `olicesx/quic-go`.
+3. Fetch that exact quic-go commit and push it to the immutable
+   `kenzok8/quic-go:daede-pinned-<40sha>` ref. The movable `daede-pinned` alias
+   may point to the same commit, but it cannot replace the immutable ref.
+4. Audit every local patch against the proposed bases:
+   - reverse apply succeeds: upstream may have absorbed it; inspect the source
+     before deleting it;
+   - forward apply succeeds: keep it;
+   - neither succeeds: port it and verify the original behavior still exists.
+5. After the mirror and patch audit succeed, update `OUTBOUND_COMMIT`,
+   `QUICGO_BASE_COMMIT` and `QUICGO_PERF_TIP` together in `ci/pins.env`.
+6. For outbound, apply `ci/patches/outbound/*.patch` and run
+   `go test ./protocol/shadowsocks_stream/`.
+7. For quic-go, apply any `ci/patches/quic-go/*.patch` and run `go build ./...`.
+8. On a staging branch, run both assemble workflows and all four gate build
+   combinations (2 SDK versions × 2 architectures). Promote to `main` only
+   after every package exists.
 
-**Archived, self-owned copy:** these 4 commits were stored as reproducible patch
-files in `ci/patches/quic-go/`. On 2026-07-31 the base moved to `6e2cee47`
-(`perf/datagram-pool`), which already contains all four, so the patch files were
-removed and the directory is now empty — the mechanism stays and any future delta
-goes back in there. See `ci/patches/quic-go/README.md`.
+## Automatic safeguards
 
-**The base must match what outbound requires.** `daeuniverse/outbound` pins
-quic-go by pseudo-version; when its `go.mod` replace target runs ahead of
-`QUICGO_BASE_COMMIT`, the build fails (2026-07-31: `ReleaseDatagram undefined`
-across all 16 arch×SDK combos). `auto-bump.yml` now holds `OUTBOUND_COMMIT`
-whenever the two diverge, and the `perf-staleness` job opens the refresh
-reminder instead of letting a broken pair reach main.
+- The core lane runs every 6 hours and updates only daed, dae-wing and the
+  official dae core pin, leaving the performance pair unchanged.
+- The perf lane runs every Monday at 03:30 Beijing time and atomically updates
+  outbound plus both quic-go pins to the exact commit required by outbound.
+- Each lane assembles on a unique staging branch; any source, patch or SDK build
+  failure stops at the gate before the tested SHA can reach `main`.
+- `patch-absorbed` checks all local patch locations so an upstream sync cannot
+  silently discard an ARM, daed, SSR or future quic-go fix.
 
-### outbound
-
-`olicesx/outbound` `main` (= `daeuniverse/outbound@main`, 2025-07) →
-`perf/complete-optimizations` = **130 commits, 215 files** (sticky-ip, ss2022,
-anytls, reality fixes, memory-safety, …). This is a large, living fork and
-`daeuniverse/outbound` upstream is itself near-dormant (newest branch 2026-02),
-so self-rebasing outbound is **high effort, low value** — ride olicesx, do not
-maintain locally.
-
-## How to refresh quic-go ourselves (when a real fix lands)
-
-Trigger: auto-bump holding `OUTBOUND_COMMIT` because outbound now requires a newer
-quic-go (the common case — this is what the staleness issue reports), or a
-security/correctness fix in official quic-go that matters to us.
-
-The build no longer fetches the olicesx perf branch — `assemble-{dae,daed}-src.yml`
-fetch `QUICGO_BASE_COMMIT` from `kenzok8/quic-go` and `git am ci/patches/quic-go/*.patch`.
-So a refresh means changing the base and/or the patch files, not chasing a branch.
-
-1. Decide what to refresh:
-   - **a new upstream fix** → backport it as a new patch file in `ci/patches/quic-go/`
-     (take the official commit's diff, apply to the matching file by hand — no shared
-     history, so not a clean cherry-pick), or
-   - **a newer base** → set `QUICGO_BASE_COMMIT` in `ci/pins.env` to exactly the
-     commit outbound's `go.mod` replaces to, then drop any patch file the new base
-     already contains (`git apply --check -R` succeeding means it is in there).
-2. Verify locally: `git clone kenzok8/quic-go`, checkout the base, `git am` whatever
-   remains in `ci/patches/quic-go/`, confirm it applies and `go build ./...` is clean.
-   Make sure `kenzok8/quic-go` carries the branch the base lives on — assemble fetches
-   from our fork, not from olicesx.
-3. Build-gate before merging (mandatory — never ship an unbuilt tree): on a staging
-   branch run `assemble-daed-src.yml` + `assemble-dae-src.yml` then
-   `test-daed-build.yml` — it must `go build` dae-core+wing clean.
-4. Only after a green gate: merge to main.
-
-## Staleness / CVE alert
-
-`auto-bump.yml`'s `perf-staleness` job warns (and opens a tracking issue) when our
-quic-go base ages past 60 days while official quic-go has newer releases — so we
-notice instead of silently aging. Treat a fired alert as "check whether the new
-upstream release carries a fix worth backporting per the steps above," not "must
-act immediately."
+The exact build path is intentionally pinned. Tracking official quic-go releases
+directly is not useful here because dae-core depends on the older, incompatible
+olicesx API lineage.
