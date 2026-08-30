@@ -1,6 +1,6 @@
 # Synced Sources
 
-Last sync: `2026-08-30 05:31:23 UTC`
+Last sync: `2026-08-30 12:00:38 UTC`
 
 | Package | Path | Branch | Commit | Upstream |
 |---------|------|--------|--------|----------|
@@ -10,7 +10,7 @@ Last sync: `2026-08-30 05:31:23 UTC`
 | openwrt-daede | `openwrt-daede` | `main` | `8f703e5a2185` | https://github.com/kenzok8/openwrt-daede.git |
 | luci-app-adguardhome | `luci-app-adguardhome` | `master` | `37fdf502b993` | https://github.com/rufengsuixing/luci-app-adguardhome.git |
 | luci-app-mosdns | `luci-app-mosdns` | `v5` | `bfc544369048` | https://github.com/sbwml/luci-app-mosdns.git |
-| openwrt-passwall | `openwrt-passwall` | `main` | `bbd098938427` | https://github.com/Openwrt-Passwall/openwrt-passwall.git |
+| openwrt-passwall | `openwrt-passwall` | `main` | `2e5e6b9a5cc2` | https://github.com/Openwrt-Passwall/openwrt-passwall.git |
 | openwrt-passwall2 | `openwrt-passwall2` | `main` | `45631b46b962` | https://github.com/Openwrt-Passwall/openwrt-passwall2.git |
 | luci-app-vlmcsd | `luci-app-vlmcsd` | `master` | `530a6ee0f075` | https://github.com/mchome/luci-app-vlmcsd.git |
 | luci-app-smartdns | `luci-app-smartdns` | `master` | `581e5e816d92` | https://github.com/pymumu/luci-app-smartdns.git |
