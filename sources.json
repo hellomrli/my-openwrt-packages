@@ -63,7 +63,7 @@
     "name": "golang",
     "path": "golang",
     "repo": "https://github.com/sbwml/packages_lang_golang.git",
-    "branch": "26.x",
-    "description": "OpenWrt Golang package from sbwml 26.x"
+    "branch": "27.x",
+    "description": "OpenWrt Golang package from sbwml 27.x"
   }
 ]

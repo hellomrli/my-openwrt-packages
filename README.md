@@ -39,7 +39,7 @@ DMCA 下架都不算罕见，一旦发生，固件立刻无法编译，而且往
 
 | 包 | 路径 | 上游 |
 |----|------|------|
-| `golang` | `golang` | `sbwml/packages_lang_golang`（`26.x` 分支） |
+| `golang` | `golang` | `sbwml/packages_lang_golang`（`27.x` 分支，最新 Go 轨道） |
 | `luci-app-adguardhome` | `luci-app-adguardhome` | `rufengsuixing/luci-app-adguardhome` |
 | `luci-app-mosdns` | `luci-app-mosdns` | `sbwml/luci-app-mosdns` |
 | `luci-app-smartdns` | `luci-app-smartdns` | `pymumu/luci-app-smartdns` |
@@ -49,7 +49,7 @@ DMCA 下架都不算罕见，一旦发生，固件立刻无法编译，而且往
 | `openwrt-passwall2` | `openwrt-passwall2` | `Openwrt-Passwall/openwrt-passwall2` |
 
 `golang` 保留但当前固件不用：my-ImmortalWrt 已改用 ImmortalWrt 官方
-`packages/lang/golang`（master / openwrt-25.12 均为 Go 1.26.x），不再覆盖官方 Go 包。
+`packages/lang/golang`（master 默认 Go 1.27，openwrt-25.12 为 Go 1.26），不再覆盖官方 Go 包。
 
 ### 本地维护
 
