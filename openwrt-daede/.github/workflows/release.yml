@@ -137,7 +137,7 @@ jobs:
             echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
             echo "prerelease=false" >> $GITHUB_OUTPUT
           else
-            echo "tag=v$(date -u +%Y.%m.%d)" >> $GITHUB_OUTPUT
+            echo "tag=v$(TZ=Asia/Shanghai date +%Y.%m.%d)" >> $GITHUB_OUTPUT
             echo "prerelease=${{ github.event.inputs.prerelease }}" >> $GITHUB_OUTPUT
           fi
 

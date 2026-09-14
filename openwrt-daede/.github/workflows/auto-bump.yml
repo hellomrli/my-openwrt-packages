@@ -278,6 +278,31 @@ jobs:
             require_sha "$fetched_sha" staging
             printf '%s\n' "$fetched_sha"
           }
+          wait_run() {
+            local id=$1 fails=0 out status conclusion
+            while :; do
+              if out=$(gh run view "$id" --json status,conclusion --jq '.status + " " + .conclusion' 2>&1); then
+                fails=0
+                read -r status conclusion <<<"$out"
+                if [ "$status" = completed ]; then
+                  echo "run $id finished: $conclusion"
+                  if [ "$conclusion" != success ]; then
+                    echo "::error::run $id concluded $conclusion"
+                    return 1
+                  fi
+                  return 0
+                fi
+              else
+                fails=$((fails + 1))
+                echo "::warning::polling run $id failed ($fails/20): $out"
+                if [ "$fails" -ge 20 ]; then
+                  echo "::error::cannot poll run $id"
+                  return 1
+                fi
+              fi
+              sleep 30
+            done
+          }
           run_and_wait() { # <workflow-file> <expected-sha> [dispatch args...]
             workflow=$1
             expected_sha=$2
@@ -308,7 +333,7 @@ jobs:
               exit 1
             fi
             echo "watching $workflow run $run_id at $expected_sha"
-            gh run watch "$run_id" --exit-status
+            wait_run "$run_id"
             LAST_RUN_ID=$run_id
           }
 
@@ -351,6 +376,31 @@ jobs:
               exit 1
             fi
           }
+          wait_run() {
+            local id=$1 fails=0 out status conclusion
+            while :; do
+              if out=$(gh run view "$id" --json status,conclusion --jq '.status + " " + .conclusion' 2>&1); then
+                fails=0
+                read -r status conclusion <<<"$out"
+                if [ "$status" = completed ]; then
+                  echo "run $id finished: $conclusion"
+                  if [ "$conclusion" != success ]; then
+                    echo "::error::run $id concluded $conclusion"
+                    return 1
+                  fi
+                  return 0
+                fi
+              else
+                fails=$((fails + 1))
+                echo "::warning::polling run $id failed ($fails/20): $out"
+                if [ "$fails" -ge 20 ]; then
+                  echo "::error::cannot poll run $id"
+                  return 1
+                fi
+              fi
+              sleep 30
+            done
+          }
           require_sha "$TESTED_SHA" tested
           git cat-file -e "$TESTED_SHA^{commit}"
           staging_sha=$(git ls-remote origin "refs/heads/$STAGING" | cut -f1)
@@ -389,7 +439,7 @@ jobs:
           echo "release.yml run $release_run_id dispatched from $STAGING at $TESTED_SHA"
           # Keep the unique ref until checkout and publishing finish; the cleanup
           # step may then remove it without racing the dispatched workflow.
-          gh run watch "$release_run_id" --exit-status
+          wait_run "$release_run_id"
 
       - name: Clean up staging branch
         if: always() && steps.detect.outputs.changed == 'true'
