@@ -95,6 +95,16 @@ jobs:
               require_sha "$daed_new" daed
               require_sha "$wing_new" dae-wing
               require_sha "$core_up_new" dae-core
+              # Skip known-incompatible upstream cores (e.g. a breaking rework
+              # that dae-wing has not caught up with yet). Treat them as "no
+              # change" so the schedule stays green until the incompatibility
+              # is resolved; remove the SHA from ci/skip-core-upstream.txt to
+              # resume tracking.
+              if grep -qx "$core_up_new" ci/skip-core-upstream.txt 2>/dev/null; then
+                echo "::warning::core upstream $(printf '%.7s' "$core_up_new") is skipped (ci/skip-core-upstream.txt); dae-wing is not compatible yet."
+                echo "changed=false" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
               if [ "$daed_new" = "$DAED_COMMIT" ] && [ "$wing_new" = "$WING_COMMIT" ] \
                  && [ "$core_up_new" = "$CORE_UPSTREAM_COMMIT" ]; then
                 echo "No core upstream change."
