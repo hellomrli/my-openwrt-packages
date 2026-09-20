@@ -3,6 +3,10 @@ name: Assemble dae source
 on:
   workflow_dispatch:
 
+concurrency:
+  group: assemble-source
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -57,11 +61,15 @@ jobs:
 
           find "$OUT" -name .git -type d -prune -exec rm -rf {} +
 
+          SOURCE_DATE_EPOCH=$(date -u -d "${DAE_VERSION//./-}T00:00:00Z" +%s)
+          export SOURCE_DATE_EPOCH
           # Unique id from the tarball content: identical input reproduces the same
           # name (idempotent), different content gets a different name - so a
           # second assemble on the same date never clobbers an older tarball
           # that older commits still reference via PKG_HASH.
-          tar --numeric-owner --owner=0 --group=0 --sort=name -czf src.tmp.tar.gz "$OUT"
+          tar --sort=name --mtime="@$SOURCE_DATE_EPOCH" \
+            --numeric-owner --owner=0 --group=0 -cf src.tmp.tar "$OUT"
+          gzip -n -9 src.tmp.tar
           SRC_ID=$(sha256sum src.tmp.tar.gz | cut -c1-12)
           TARBALL="dae-src-${DAE_VERSION}-${SRC_ID}.tar.gz"
           mv src.tmp.tar.gz "$TARBALL"
@@ -74,14 +82,8 @@ jobs:
         run: |
           gh release view dae-src --repo "${{ github.repository }}" >/dev/null 2>&1 || \
             gh release create dae-src --repo "${{ github.repository }}" \
-              --title "dae pinned source" --notes "Auto-assembled dae source tarballs (newest 3 kept)." --latest=false
-          gh release upload dae-src "$TARBALL" --repo "${{ github.repository }}" --clobber
-          # bound growth: keep only the newest 3 tarballs (never the release/tag)
-          gh release view dae-src --repo "${{ github.repository }}" --json assets \
-            --jq '.assets | sort_by(.createdAt) | reverse | .[3:] | .[].name' \
-            | while read -r old; do
-                [ -n "$old" ] && gh release delete-asset dae-src "$old" --repo "${{ github.repository }}" -y
-              done
+              --title "dae pinned source" --notes "Auto-assembled immutable content-addressed dae source assets; existing assets are never overwritten or automatically deleted." --latest=false
+          sh scripts/upload-source-asset.sh dae-src "$TARBALL" "${{ github.repository }}"
 
       - name: Write PKG_HASH into Makefile and push
         env:

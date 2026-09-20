@@ -23,7 +23,6 @@ on:
 permissions:
   contents: write
   actions: write
-  issues: write
 
 concurrency:
   group: auto-bump-dae-daed
@@ -95,16 +94,6 @@ jobs:
               require_sha "$daed_new" daed
               require_sha "$wing_new" dae-wing
               require_sha "$core_up_new" dae-core
-              # Skip known-incompatible upstream cores (e.g. a breaking rework
-              # that dae-wing has not caught up with yet). Treat them as "no
-              # change" so the schedule stays green until the incompatibility
-              # is resolved; remove the SHA from ci/skip-core-upstream.txt to
-              # resume tracking.
-              if grep -qx "$core_up_new" ci/skip-core-upstream.txt 2>/dev/null; then
-                echo "::warning::core upstream $(printf '%.7s' "$core_up_new") is skipped (ci/skip-core-upstream.txt); dae-wing is not compatible yet."
-                echo "changed=false" >> "$GITHUB_OUTPUT"
-                exit 0
-              fi
               if [ "$daed_new" = "$DAED_COMMIT" ] && [ "$wing_new" = "$WING_COMMIT" ] \
                  && [ "$core_up_new" = "$CORE_UPSTREAM_COMMIT" ]; then
                 echo "No core upstream change."
@@ -366,14 +355,69 @@ jobs:
             exit 1
           fi
           rm -rf gate-artifacts
-          gh run download "$gate_run_id" -D gate-artifacts
-          for pkg in dae daed; do
-            find gate-artifacts \( -name "${pkg}-*.apk" -o -name "${pkg}_*.ipk" \) -print -quit | grep -q . || {
-              echo "gate failed: $pkg produced no package"; exit 1; }
+          mkdir -p gate-artifacts
+          artifacts=(
+            pkgs-x86_64-24.10
+            pkgs-x86_64-25.12
+            pkgs-aarch64_generic-24.10
+            pkgs-aarch64_generic-25.12
+          )
+          for artifact in "${artifacts[@]}"; do
+            gh run download "$gate_run_id" --name "$artifact" --dir "gate-artifacts/$artifact"
+            [ -d "gate-artifacts/$artifact" ] || {
+              echo "::error::missing downloaded artifact directory: $artifact"
+              exit 1
+            }
+            for package in dae daed; do
+              found=0
+              while IFS= read -r -d '' file; do
+                name=${file##*/}
+                case "$name" in
+                  "$package"-*.apk|"$package"_*.apk|"$package"-*.ipk|"$package"_*.ipk)
+                    found=1
+                    break
+                    ;;
+                esac
+              done < <(find "gate-artifacts/$artifact" -type f \( -name '*.apk' -o -name '*.ipk' \) -print0)
+              [ "$found" -eq 1 ] || {
+                echo "::error::$artifact has no $package package artifact"
+                exit 1
+              }
+            done
           done
+          echo "validated exact package artifacts: ${artifacts[*]}"
           echo "tested_sha=$tested_sha" >> "$GITHUB_OUTPUT"
 
-      - name: Promote to main and publish
+      - name: Audit exact tested candidate
+        if: steps.detect.outputs.changed == 'true'
+        env:
+          TESTED_SHA: ${{ steps.gate.outputs.tested_sha }}
+        run: |
+          set -euo pipefail
+          require_sha() {
+            if ! [[ "$1" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "::error::$2 is not a full 40-character commit SHA: ${1:-<empty>}"
+              exit 1
+            fi
+          }
+          require_sha "$TESTED_SHA" tested
+          git fetch -q --force origin "$TESTED_SHA"
+          resolved_sha=$(git rev-parse "$TESTED_SHA^{commit}")
+          require_sha "$resolved_sha" resolved
+          [ "$resolved_sha" = "$TESTED_SHA" ] || {
+            echo "::error::resolved $resolved_sha instead of tested $TESTED_SHA"
+            exit 1
+          }
+          audit_dir=$(mktemp -d)
+          trap 'rm -rf "$audit_dir"' EXIT
+          git archive "$TESTED_SHA" | tar -x -C "$audit_dir"
+          [ -f "$audit_dir/scripts/audit-upstream.sh" ] || {
+            echo "::error::tested candidate lacks scripts/audit-upstream.sh"
+            exit 1
+          }
+          bash "$audit_dir/scripts/audit-upstream.sh" "$audit_dir"
+
+      - name: Promote tested candidate to main
         if: steps.detect.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -386,14 +430,53 @@ jobs:
               exit 1
             fi
           }
+          require_sha "$TESTED_SHA" tested
+          git cat-file -e "$TESTED_SHA^{commit}"
+          staging_sha=$(git ls-remote origin "refs/heads/$STAGING" | cut -f1)
+          require_sha "$staging_sha" staging
+          if [ "$staging_sha" != "$TESTED_SHA" ]; then
+            echo "::error::$STAGING is $staging_sha, but gate tested $TESTED_SHA"
+            exit 1
+          fi
+          git push origin "$TESTED_SHA:refs/heads/main"
+          main_sha=$(git ls-remote origin refs/heads/main | cut -f1)
+          require_sha "$main_sha" main
+          if [ "$main_sha" != "$TESTED_SHA" ]; then
+            echo "::error::main is $main_sha after promoting $TESTED_SHA"
+            exit 1
+          fi
+
+      - name: Dispatch and wait for release
+        if: steps.detect.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TESTED_SHA: ${{ steps.gate.outputs.tested_sha }}
+        run: |
+          set -euo pipefail
+          release_pending_marker="$RUNNER_TEMP/auto-bump-release-pending-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          release_completed_marker="$RUNNER_TEMP/auto-bump-release-completed-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          rm -f "$release_pending_marker" "$release_completed_marker"
+          require_sha() {
+            if ! [[ "$1" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "::error::$2 is not a full 40-character commit SHA: ${1:-<empty>}"
+              exit 1
+            fi
+          }
           wait_run() {
             local id=$1 fails=0 out status conclusion
             while :; do
-              if out=$(gh run view "$id" --json status,conclusion --jq '.status + " " + .conclusion' 2>&1); then
+              if out=$(gh run view "$id" --json status,conclusion,headSha \
+                --jq '.status + " " + (.conclusion // "") + " " + .headSha' 2>&1); then
                 fails=0
-                read -r status conclusion <<<"$out"
+                read -r status conclusion release_sha <<<"$out"
+                require_sha "$release_sha" release-run
+                if [ "$release_sha" != "$TESTED_SHA" ]; then
+                  echo "::error::release run $id moved to $release_sha, expected $TESTED_SHA"
+                  return 1
+                fi
                 if [ "$status" = completed ]; then
                   echo "run $id finished: $conclusion"
+                  : > "$release_completed_marker"
                   if [ "$conclusion" != success ]; then
                     echo "::error::run $id concluded $conclusion"
                     return 1
@@ -412,21 +495,16 @@ jobs:
             done
           }
           require_sha "$TESTED_SHA" tested
-          git cat-file -e "$TESTED_SHA^{commit}"
           staging_sha=$(git ls-remote origin "refs/heads/$STAGING" | cut -f1)
-          require_sha "$staging_sha" staging
-          if [ "$staging_sha" != "$TESTED_SHA" ]; then
-            echo "::error::$STAGING is $staging_sha, but gate tested $TESTED_SHA"
-            exit 1
-          fi
-          git push origin "$TESTED_SHA:refs/heads/main"
           main_sha=$(git ls-remote origin refs/heads/main | cut -f1)
+          require_sha "$staging_sha" staging
           require_sha "$main_sha" main
-          if [ "$main_sha" != "$TESTED_SHA" ]; then
-            echo "::error::main is $main_sha after promoting $TESTED_SHA"
+          if [ "$staging_sha" != "$TESTED_SHA" ] || [ "$main_sha" != "$TESTED_SHA" ]; then
+            echo "::error::release requires main and $STAGING at tested $TESTED_SHA (main=$main_sha staging=$staging_sha)"
             exit 1
           fi
 
+          : > "$release_pending_marker"
           gh workflow run release.yml --ref "$STAGING" -f prerelease=false
           release_run_id=""
           for _ in {1..60}; do
@@ -461,93 +539,17 @@ jobs:
             echo "::error::refusing to delete unexpected staging branch: $STAGING"
             exit 1
           fi
+          release_pending_marker="$RUNNER_TEMP/auto-bump-release-pending-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          release_completed_marker="$RUNNER_TEMP/auto-bump-release-completed-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          if [ -f "$release_completed_marker" ]; then
+            :
+          elif [ -f "$release_pending_marker" ]; then
+            echo "::warning::release completion was not confirmed; keeping $STAGING for investigation."
+            exit 0
+          fi
           if gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$STAGING" >/dev/null 2>&1; then
             gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$STAGING"
             echo "Deleted $STAGING."
           else
             echo "$STAGING does not exist; nothing to clean."
-          fi
-
-  patch-absorbed:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - name: Check whether upstream absorbed our patches
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -eu
-          absorbed=""
-          scan() { # <pkgdir> <src subdir inside the tarball> <patch dirs...>
-            pkg="$1"
-            makefile="$pkg/Makefile"
-            srcdir="$2"
-            shift 2
-            src=$(sed -n 's/^PKG_SOURCE:=//p' "$makefile")
-            url=$(sed -n 's/^PKG_SOURCE_URL:=//p' "$makefile")
-            ver=$(sed -n 's/^PKG_VERSION:=//p' "$makefile")
-            [ -n "$src" ] && [ -n "$url" ] || {
-              echo "::error::cannot resolve source for $pkg"; return 1; }
-            rm -rf scan-src scan.tar.gz
-            curl -fsSL -o scan.tar.gz "$url/$src"
-            mkdir scan-src
-            tar xzf scan.tar.gz -C scan-src
-            d="scan-src/$pkg-$ver/$srcdir"
-            [ -d "$d" ] || {
-              echo "::error::missing source directory $d"; return 1; }
-            for patch_dir in "$@"; do
-              for p in "$pkg"/"$patch_dir"/*.patch; do
-                [ -f "$p" ] || continue
-                if patch -p1 -d "$d" --dry-run -R -f <"$p" >/dev/null 2>&1; then
-                  absorbed="${absorbed}\n- \`$p\`"
-                elif patch -p1 -d "$d" --dry-run -f <"$p" >/dev/null 2>&1; then
-                  patch -p1 -d "$d" -f <"$p" >/dev/null
-                else
-                  echo "::error::$p neither reverse-applies nor forward-applies"
-                  return 1
-                fi
-              done
-            done
-          }
-          scan_git() { # <name> <repo> <commit> <patch dir>
-            name="$1"
-            repo="$2"
-            commit="$3"
-            patch_dir="$4"
-            d="scan-git/$name"
-            rm -rf "$d"
-            git init -q "$d"
-            git -C "$d" remote add origin "$repo"
-            git -C "$d" fetch -q --depth=1 origin "$commit"
-            git -C "$d" checkout -q FETCH_HEAD
-            for p in "$patch_dir"/*.patch; do
-              [ -f "$p" ] || continue
-              if git -C "$d" apply --check -R "$GITHUB_WORKSPACE/$p" >/dev/null 2>&1; then
-                absorbed="${absorbed}\n- \`$p\`"
-              elif git -C "$d" apply --check "$GITHUB_WORKSPACE/$p" >/dev/null 2>&1; then
-                git -C "$d" apply "$GITHUB_WORKSPACE/$p"
-              else
-                echo "::error::$p neither reverse-applies nor forward-applies"
-                return 1
-              fi
-            done
-          }
-          . ci/pins.env
-          scan dae core patches patches_arm
-          scan daed wing patches patches_arm
-          scan_git outbound https://github.com/kenzok8/outbound "$OUTBOUND_COMMIT" ci/patches/outbound
-          scan_git quic-go https://github.com/kenzok8/quic-go "$QUICGO_BASE_COMMIT" ci/patches/quic-go
-          title="🧹 patches: upstream absorbed some of ours"
-          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "upstream absorbed in:title" --json number --jq '.[0].number' 2>/dev/null || echo "")
-          if [ -z "$absorbed" ]; then
-            echo "no patch is redundant."
-            [ -n "$existing" ] && gh issue close "$existing" --repo "$GITHUB_REPOSITORY" -c "No redundant patch left; auto-closing." || true
-            exit 0
-          fi
-          echo "::warning::these patches already exist upstream and can be dropped."
-          body=$(printf 'Automated check (auto-bump.yml).\n\nThese patches reverse-apply cleanly against the pinned source, meaning upstream already carries them. Keeping them risks a conflict on the next bump:\n%b\n\nDrop them (and bump PKG_RELEASE) after confirming the feature is still present.' "$absorbed")
-          if [ -n "$existing" ]; then
-            gh issue edit "$existing" --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
-          else
-            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
           fi

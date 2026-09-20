@@ -7,6 +7,10 @@ name: Assemble daed source
 on:
   workflow_dispatch:
 
+concurrency:
+  group: assemble-source
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -82,17 +86,21 @@ jobs:
           cp -rf "$OUT/apps/web/dist/"* "$OUT/wing/webrender/web/"
           find "$OUT/wing/webrender/web" -name "*.map" -type f -delete
           find "$OUT/wing/webrender/web" -type f -size +4k ! -name "*.gz" ! -name "*.woff" ! -name "*.woff2" \
-            -exec sh -c 'gzip -9 -k "$1"; [ "$(stat -c%s "$1")" -lt "$(stat -c%s "$1.gz")" ] && rm "$1.gz" || rm "$1"' _ {} \;
+            -exec sh -c 'gzip -n -9 -k "$1"; [ "$(stat -c%s "$1")" -lt "$(stat -c%s "$1.gz")" ] && rm "$1.gz" || rm "$1"' _ {} \;
 
           # Strip VCS / node junk; go module deps are fetched via go.sum at build time.
           find "$OUT" -name .git -type d -prune -exec rm -rf {} +
           find "$OUT" -name node_modules -type d -prune -exec rm -rf {} +
 
+          SOURCE_DATE_EPOCH=$(date -u -d "${DAED_VERSION//./-}T00:00:00Z" +%s)
+          export SOURCE_DATE_EPOCH
           # Unique id from the tarball content: identical input reproduces the same
           # name (idempotent), different content gets a different name - so a
           # second assemble on the same date never clobbers an older tarball
           # that older commits still reference via PKG_HASH.
-          tar --numeric-owner --owner=0 --group=0 --sort=name -czf src.tmp.tar.gz "$OUT"
+          tar --sort=name --mtime="@$SOURCE_DATE_EPOCH" \
+            --numeric-owner --owner=0 --group=0 -cf src.tmp.tar "$OUT"
+          gzip -n -9 src.tmp.tar
           SRC_ID=$(sha256sum src.tmp.tar.gz | cut -c1-12)
           TARBALL="daed-src-${DAED_VERSION}-${SRC_ID}.tar.gz"
           mv src.tmp.tar.gz "$TARBALL"
@@ -105,14 +113,8 @@ jobs:
         run: |
           gh release view daed-src --repo "${{ github.repository }}" >/dev/null 2>&1 || \
             gh release create daed-src --repo "${{ github.repository }}" \
-              --title "daed pinned source" --notes "Auto-assembled daed source tarballs (newest 3 kept)." --latest=false
-          gh release upload daed-src "$TARBALL" --repo "${{ github.repository }}" --clobber
-          # bound growth: keep only the newest 3 tarballs (never the release/tag)
-          gh release view daed-src --repo "${{ github.repository }}" --json assets \
-            --jq '.assets | sort_by(.createdAt) | reverse | .[3:] | .[].name' \
-            | while read -r old; do
-                [ -n "$old" ] && gh release delete-asset daed-src "$old" --repo "${{ github.repository }}" -y
-              done
+              --title "daed pinned source" --notes "Auto-assembled immutable content-addressed daed source assets; existing assets are never overwritten or automatically deleted." --latest=false
+          sh scripts/upload-source-asset.sh daed-src "$TARBALL" "${{ github.repository }}"
 
       - name: Write PKG_HASH into Makefile and push
         env:
