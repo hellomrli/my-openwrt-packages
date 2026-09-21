@@ -357,10 +357,22 @@ jobs:
           rm -rf gate-artifacts
           mkdir -p gate-artifacts
           artifacts=(
-            pkgs-x86_64-24.10
-            pkgs-x86_64-25.12
+            pkgs-aarch64_cortex-a53-24.10
+            pkgs-aarch64_cortex-a53-25.12
+            pkgs-aarch64_cortex-a72-24.10
+            pkgs-aarch64_cortex-a72-25.12
             pkgs-aarch64_generic-24.10
             pkgs-aarch64_generic-25.12
+            pkgs-arm_cortex-a7_neon-vfpv4-24.10
+            pkgs-arm_cortex-a7_neon-vfpv4-25.12
+            pkgs-arm_cortex-a9-24.10
+            pkgs-arm_cortex-a9-25.12
+            pkgs-arm_cortex-a9_neon-24.10
+            pkgs-arm_cortex-a9_neon-25.12
+            pkgs-i386_pentium4-24.10
+            pkgs-i386_pentium4-25.12
+            pkgs-x86_64-24.10
+            pkgs-x86_64-25.12
           )
           for artifact in "${artifacts[@]}"; do
             gh run download "$gate_run_id" --name "$artifact" --dir "gate-artifacts/$artifact"

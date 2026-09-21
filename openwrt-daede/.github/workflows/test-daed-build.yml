@@ -1,6 +1,6 @@
 name: Test daed build
 
-# Iteration-only: builds dae/daed for one arch and uploads the .apk as an artifact.
+# Iteration-only: builds dae/daed for release targets and uploads package artifacts.
 # No feed upload, no release — safe to run on feature branches.
 
 on:
@@ -9,6 +9,28 @@ on:
       packages:
         description: Packages to build
         default: "dae daed"
+      arch:
+        description: Architecture (all for release matrix)
+        type: choice
+        default: all
+        options:
+          - all
+          - aarch64_cortex-a53
+          - aarch64_cortex-a72
+          - aarch64_generic
+          - arm_cortex-a7_neon-vfpv4
+          - arm_cortex-a9
+          - arm_cortex-a9_neon
+          - i386_pentium4
+          - x86_64
+      sdk:
+        description: SDK version (all for release matrix)
+        type: choice
+        default: all
+        options:
+          - all
+          - "24.10"
+          - "25.12"
 
 permissions:
   contents: read
@@ -19,15 +41,26 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [x86_64, aarch64_generic]
-        sdk: ["24.10", "25.12"]
+        arch: ${{ fromJSON(inputs.arch == 'all' && '["aarch64_cortex-a53","aarch64_cortex-a72","aarch64_generic","arm_cortex-a7_neon-vfpv4","arm_cortex-a9","arm_cortex-a9_neon","i386_pentium4","x86_64"]' || format('["{0}"]', inputs.arch)) }}
+        sdk: ${{ fromJSON(inputs.sdk == 'all' && '["24.10","25.12"]' || format('["{0}"]', inputs.sdk)) }}
     steps:
       - uses: actions/checkout@v6
+
+      - name: Prepare SDK action with pahole
+        uses: actions/checkout@v6
+        with:
+          repository: kenzok8/gh-action-sdk
+          ref: 44f98c51d04aebd1aa79fe4f603559c1ec2085da
+          path: .github/actions/gh-action-sdk
+          persist-credentials: false
+
+      - name: Add pahole to SDK image
+        run: git -C .github/actions/gh-action-sdk apply "$GITHUB_WORKSPACE/.github/patches/gh-action-sdk-pahole.patch"
 
       - name: Build packages
         id: sdk
         continue-on-error: true
-        uses: kenzok8/gh-action-sdk@hash
+        uses: ./.github/actions/gh-action-sdk
         env:
           CONTAINER: immortalwrt/sdk
           ARCH: ${{ matrix.arch }}-openwrt-${{ matrix.sdk }}

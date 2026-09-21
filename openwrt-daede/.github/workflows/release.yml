@@ -37,6 +37,17 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Prepare SDK action with pahole
+        uses: actions/checkout@v6
+        with:
+          repository: kenzok8/gh-action-sdk
+          ref: 44f98c51d04aebd1aa79fe4f603559c1ec2085da
+          path: .github/actions/gh-action-sdk
+          persist-credentials: false
+
+      - name: Add pahole to SDK image
+        run: git -C .github/actions/gh-action-sdk apply "$GITHUB_WORKSPACE/.github/patches/gh-action-sdk-pahole.patch"
+
       # Heavy dae/daed + Go toolchain builds can exhaust the runner's ~14GB.
       # Drop preinstalled toolchains we never use to reclaim ~25GB and avoid
       # "No space left on device" on the largest jobs (e.g. aarch64 SDK 25.12).
@@ -49,7 +60,8 @@ jobs:
           df -h /
 
       - name: Build packages
-        uses: kenzok8/gh-action-sdk@hash
+        continue-on-error: true
+        uses: ./.github/actions/gh-action-sdk
         env:
           CONTAINER: immortalwrt/sdk
           ARCH: ${{ matrix.arch }}-openwrt-${{ matrix.sdk }}
@@ -65,6 +77,27 @@ jobs:
           # dae / daed go.mod requires Go 1.26; override SDK's bundled golang.
           GOLANG_REPO: https://github.com/kenzok8/golang
           GOLANG_BRANCH: '1.26'
+
+      - name: Require all release packages
+        run: |
+          set -euo pipefail
+          output_dir="bin/packages/${{ matrix.arch }}/daede"
+          for package in dae daed luci-app-daede vmlinux-btf; do
+            found=0
+            while IFS= read -r -d '' file; do
+              name=${file##*/}
+              case "$name" in
+                "$package"-*.apk|"$package"_*.apk|"$package"-*.ipk|"$package"_*.ipk)
+                  found=1
+                  break
+                  ;;
+              esac
+            done < <(find "$output_dir" -maxdepth 1 -type f \( -name '*.apk' -o -name '*.ipk' \) -print0 2>/dev/null || true)
+            [ "$found" -eq 1 ] || {
+              echo "::error::$package has no package for ${{ matrix.arch }} SDK ${{ matrix.sdk }}"
+              exit 1
+            }
+          done
 
       - name: Collect packages
         run: |
@@ -105,6 +138,17 @@ jobs:
         with:
           name: packages-sdk${{ matrix.sdk }}-${{ matrix.arch }}
           path: dist/
+          if-no-files-found: ignore
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: logs-sdk${{ matrix.sdk }}-${{ matrix.arch }}
+          path: |
+            logs/**
+            *.log
+            **/*.log
           if-no-files-found: ignore
 
   release:
@@ -283,14 +327,14 @@ jobs:
           path: artifacts
           pattern: packages-*
 
-      - name: Require dae/daed on supported targets
+      - name: Require all packages on supported targets
         run: |
           set -eu
           fail=0
           for sdk in 24.10 25.12; do
             for arch in aarch64_cortex-a53 aarch64_cortex-a72 aarch64_generic arm_cortex-a7_neon-vfpv4 arm_cortex-a9 arm_cortex-a9_neon i386_pentium4 x86_64; do
               dir="artifacts/packages-sdk${sdk}-${arch}/feed"
-              for pkg in dae daed; do
+              for pkg in dae daed luci-app-daede vmlinux-btf; do
                 if ls "$dir"/${pkg}_*.ipk >/dev/null 2>&1 || ls "$dir"/${pkg}-*.apk >/dev/null 2>&1; then
                   :
                 else
@@ -300,7 +344,7 @@ jobs:
             done
           done
           [ "$fail" -eq 0 ] || { echo "verify failed; feed will not be published"; exit 1; }
-          echo "all required dae/daed packages present"
+          echo "all required release packages present"
 
   upload_feed:
     name: Upload Feed to B2
