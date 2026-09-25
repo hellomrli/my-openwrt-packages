@@ -100,6 +100,7 @@ patch_dirs=(
     dae/patches_arm
     daed/patches
     daed/patches_arm
+    ci/patches/daed-web
     ci/patches/outbound
     ci/patches/quic-go
 )
@@ -116,7 +117,7 @@ for patch_dir in "${patch_dirs[@]}"; do
         patch_count=$((patch_count + 1))
     done
 done
-(( patch_count > 0 )) || fail "no patches found in the six patch directories"
+(( patch_count > 0 )) || fail "no patches found in the patch directories"
 
 processed_count=0
 absorbed_count=0
@@ -169,10 +170,21 @@ apply_tree_patches "$audit_tmp/dae-arm/core" dae/patches_arm
 
 daed_source=$(download_source daed)
 [[ -d "$daed_source/wing" ]] || fail "missing assembled daed wing: $daed_source/wing"
+for patch_file in "$repo"/ci/patches/daed-web/*.patch; do
+    processed_count=$((processed_count + 1))
+    patch -p1 -d "$daed_source" --dry-run -R -f <"$patch_file" >/dev/null 2>&1 || \
+        fail "${patch_file#"$repo"/} missing from assembled daed web source"
+    printf 'EMBEDDED: %s\n' "${patch_file#"$repo"/}"
+done
 cp -a "$daed_source" "$audit_tmp/daed-arm"
 apply_tree_patches "$daed_source/wing" daed/patches
 apply_tree_patches "$audit_tmp/daed-arm/wing" daed/patches no_count
 apply_tree_patches "$audit_tmp/daed-arm/wing" daed/patches_arm
+
+# A patch can still apply after upstream has added the same Go API with
+# different surrounding comments. Compile config before the SDK gate.
+printf 'BUILD: daed core config\n'
+(cd "$daed_source/wing/dae-core" && go test -c -o "$audit_tmp/daed-config.test" ./config)
 
 fetch_exact() {
     local url=$1 commit=$2 target=$3 resolved

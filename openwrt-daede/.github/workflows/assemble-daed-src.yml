@@ -77,6 +77,9 @@ jobs:
           # Prebuild web and embed. Upstream occasionally updates workspace
           # catalog specifiers without refreshing pnpm-lock.yaml; normalize the
           # pinned source lockfile first, then do the real frozen install.
+          if ls "$GITHUB_WORKSPACE"/ci/patches/daed-web/*.patch >/dev/null 2>&1; then
+            git -C "$OUT" apply "$GITHUB_WORKSPACE"/ci/patches/daed-web/*.patch
+          fi
           corepack enable pnpm
           ( cd "$OUT" \
               && pnpm install --lockfile-only --ignore-scripts \
@@ -139,5 +142,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add daed/Makefile
           git diff --cached --quiet && { echo "no change"; exit 0; }
-          git commit -m "chore(daed): assemble pinned source ${DAED_VERSION}-${rel}"
+          git commit -m "Assemble daed source" \
+            -m "改动：将 daed 更新为 ${DAED_VERSION}-r${rel} 并写入新源码哈希。" \
+            -m "原因：网页修补需要随预编译资源一同进入安装包。"
           git push origin "HEAD:${{ github.ref_name }}"
