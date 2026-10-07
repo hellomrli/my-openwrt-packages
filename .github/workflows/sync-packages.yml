@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: sync-openwrt-packages-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   sync:
     runs-on: ubuntu-24.04
@@ -23,7 +27,8 @@ jobs:
       - name: Commit changes
         id: commit
         run: |
-          if git diff --quiet; then
+          git add .
+          if git diff --cached --quiet; then
             echo "No package updates."
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
@@ -31,7 +36,20 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .
           git commit -m "sync: update OpenWrt packages"
-          git push
-          echo "changed=true" >> "$GITHUB_OUTPUT"
+          # Human commits can arrive while upstream repositories are syncing.
+          # Rebase onto them; never overwrite remote history or resolve conflicts blindly.
+          for attempt in 1 2 3; do
+            git fetch origin "$GITHUB_REF_NAME"
+            if ! git rebase "origin/$GITHUB_REF_NAME"; then
+              git rebase --abort
+              echo "::error::Sync conflicts with a remote change; manual review required."
+              exit 1
+            fi
+            if git push origin "HEAD:refs/heads/$GITHUB_REF_NAME"; then
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          echo "::error::Unable to push after three attempts."
+          exit 1
