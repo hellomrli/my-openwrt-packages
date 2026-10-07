@@ -53,6 +53,13 @@ DMCA 下架都不算罕见，一旦发生，固件立刻无法编译，而且往
 
 ### 本地维护
 
+[`luci-app-gxmobile/`](luci-app-gxmobile/) 和 [`gxmobile-scan/`](gxmobile-scan/)
+提供广西移动 IPTV 扫描的 LuCI 界面与 Go 后端，当前版本为 **1.2.0-r2**。
+支持手动快速 / 完整扫描、每日 / 每周定时扫描、频道管理及 M3U 导出，当前支持 x86_64。
+这两个目录由本地维护，**不加入 `sources.json`**，自动同步不会覆盖它们。
+独立编译和使用说明见 [组件文档](luci-app-gxmobile/README.md)。
+IPTV 固件仍使用其仓库内的配套源码；本仓库保存可独立使用的组件副本。
+
 `adguardhome-dual/` 由本仓库维护，不在 `sources.json` 中，不会被同步覆盖。
 
 当前固件同样不编译它——已改用官方 `adguardhome` 包提供二进制，再用 overlay 提供

@@ -1,0 +1,85 @@
+'use strict';
+
+import { popen } from 'fs';
+import { cursor } from 'uci';
+
+function quote(s) { return "'" + replace(s, "'", "'\\''") + "'"; }
+
+// rpcd injects ubus_rpc_session into request.args for browser calls. Only
+// explicitly declared application fields may reach the API or persistent UCI.
+function pick(args, keys) {
+	let result = {};
+	for (let key in keys) result[key] = args[key];
+	return result;
+}
+
+function proxy(path, body) {
+	let command = "/usr/bin/curl --noproxy '*' -sS --fail-with-body --max-time 10 ";
+	if (body != null)
+		command += "-H 'Content-Type: application/json' --data " + quote(sprintf('%J', body)) + ' ';
+	let fd = popen(command + quote('http://127.0.0.1:8081' + path) + ' 2>/dev/null');
+	if (!fd) return { error: '无法连接扫描后台' };
+	let output = fd.read('all');
+	let code = fd.close();
+	if (code != 0) return { error: trim(output || '') || '扫描后台未运行，请检查服务设置' };
+	try { return json(output); } catch (e) { return { error: '扫描后台返回了无效数据' }; }
+}
+
+function settings() {
+	let c = cursor();
+	let s = c.get_all('gxmobile', 'main') || {};
+	let result = {};
+	for (let k, v in s) if (substr(k, 0, 1) != '.') result[k] = v;
+	return result;
+}
+
+function integer(n, lo, hi) { return type(n) == 'int' && n >= lo && n <= hi; }
+
+return {
+	'luci.gxmobile': {
+		status: { call: function() { return proxy('/api/status'); } },
+		channels: { call: function() { let result = proxy('/api/channels'); return type(result) == 'array' ? { channels: result } : result; } },
+		report: { call: function() { return proxy('/api/report'); } },
+		settings: { call: settings },
+		scan: {
+			args: { mode: '', range: '' },
+			call: function(req) { return proxy('/api/scan', pick(req.args, ['mode', 'range'])); }
+		},
+		rename: {
+			args: { name: '', newName: '', group: '' },
+			call: function(req) { return proxy('/api/rename', pick(req.args, ['name', 'newName', 'group'])); }
+		},
+		delete: {
+			args: { name: '' },
+			call: function(req) { return proxy('/api/delete', pick(req.args, ['name'])); }
+		},
+		configure: {
+			args: { enabled: true, schedule_enabled: true, frequency: '', weekday: 0, hour: 0, minute: 0, mode: '', gateway: '', range: '', workers: 0, measure_workers: 0 },
+			call: function(req) {
+				let a = pick(req.args, ['enabled', 'schedule_enabled', 'frequency', 'weekday', 'hour', 'minute', 'mode', 'gateway', 'range', 'workers', 'measure_workers']);
+				let range = match(a.range, /^([0-9]+)-([0-9]+)$/);
+				if (!range || +range[1] < 1 || +range[2] < +range[1] || +range[2] > 4294967295 || +range[2] - +range[1] >= 5000)
+					return { error: '扫描范围必须为有效 CID，且不超过 5000 个' };
+				if (!match(a.gateway, /^https?:\/\/([a-zA-Z0-9.-]+|\[[a-fA-F0-9:]+\])(:[0-9]{1,5})?(\/[a-zA-Z0-9._~!$&()*+,;=:@%\/-]*)?$/))
+					return { error: '无效网关地址（不支持用户名、密码或查询参数）' };
+				if ((a.frequency != 'daily' && a.frequency != 'weekly') || (a.mode != 'fast' && a.mode != 'full') ||
+					!integer(a.weekday, 0, 6) || !integer(a.hour, 0, 23) || !integer(a.minute, 0, 59) ||
+					!integer(a.workers, 1, 16) || !integer(a.measure_workers, 1, 4))
+					return { error: '无效定时或并发参数' };
+				if (proxy('/api/status').running) return { error: '扫描期间不能更改设置，请等待完成' };
+				let c = cursor();
+				let old = settings();
+				c.set('gxmobile', 'main', 'gxmobile');
+				for (let k, v in a) c.set('gxmobile', 'main', k, type(v) == 'bool' ? (v ? '1' : '0') : '' + v);
+				if (!c.save('gxmobile') || !c.commit('gxmobile')) return { error: '保存配置失败' };
+				if (system('/etc/init.d/gxmobile-scan reload >/dev/null 2>&1') != 0) {
+					for (let k, v in old) c.set('gxmobile', 'main', k, v);
+					c.save('gxmobile'); c.commit('gxmobile');
+					system('/etc/init.d/gxmobile-scan reload >/dev/null 2>&1');
+					return { error: '应用失败，已恢复原配置' };
+				}
+				return { ok: true };
+			}
+		}
+	}
+};

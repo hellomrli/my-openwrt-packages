@@ -1,0 +1,7 @@
+{
+  "luci-app-gxmobile": {
+    "description": "Manage the IPTV scanner through fixed, authenticated methods",
+    "read": { "ubus": { "luci.gxmobile": ["status", "channels", "report", "settings"] } },
+    "write": { "ubus": { "luci.gxmobile": ["scan", "rename", "delete", "configure"] } }
+  }
+}

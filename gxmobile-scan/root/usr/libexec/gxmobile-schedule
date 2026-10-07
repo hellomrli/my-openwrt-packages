@@ -1,0 +1,51 @@
+#!/bin/sh
+# Both cron and LuCI submit jobs to the same resident scanner.
+# OpenWrt's shared functions intentionally reference unset optional variables.
+set -e
+. /lib/functions.sh
+config_load gxmobile
+config_get_bool enabled main enabled 1
+config_get_bool scheduled main schedule_enabled 0
+
+case "${1:-}" in
+	run)
+		[ "$enabled" = 1 ] && [ "$scheduled" = 1 ] || exit 0
+		config_get mode main mode full
+		case "$mode" in fast|full) ;; *) exit 1 ;; esac
+		if result=$(curl --noproxy '*' -fsS --max-time 15 \
+			-H 'Content-Type: application/json' -d "{\"mode\":\"$mode\"}" \
+			http://127.0.0.1:8081/api/scan 2>&1); then
+			logger -t gxmobile-scan "scheduled $mode scan submitted"
+		else
+			logger -t gxmobile-scan -p daemon.err "scheduled scan was not started: $result"
+			exit 1
+		fi
+		;;
+	sync)
+		config_get frequency main frequency weekly
+		config_get weekday main weekday 1
+		config_get hour main hour 4
+		config_get minute main minute 20
+		case "$weekday:$hour:$minute" in *[!0-9:]*|::*|*::*) exit 1 ;; esac
+		[ -n "$weekday" ] && [ -n "$hour" ] && [ -n "$minute" ] || exit 1
+		[ "$weekday" -le 6 ] && [ "$hour" -le 23 ] && [ "$minute" -le 59 ] || exit 1
+		case "$frequency" in daily) weekday='*' ;; weekly) ;; *) exit 1 ;; esac
+		mkdir -p /etc/crontabs /var/lock
+		exec 9>/var/lock/gxmobile-cron.lock
+		flock -x 9
+		tmp=$(mktemp /etc/crontabs/.gxmobile.XXXXXX)
+		trap 'rm -f "$tmp"' EXIT HUP INT TERM
+		if [ -f /etc/crontabs/root ]; then
+			awk '$1 !~ /^#/ && ($6 == "/usr/bin/gxmobile-scan" || ($6 == "/usr/libexec/gxmobile-schedule" && $7 == "run")) { next } { print }' /etc/crontabs/root > "$tmp"
+		fi
+		if [ "$enabled" = 1 ] && [ "$scheduled" = 1 ]; then
+			printf '%s %s * * %s /usr/libexec/gxmobile-schedule run # gxmobile-managed\n' "$minute" "$hour" "$weekday" >> "$tmp"
+		fi
+		chmod 600 "$tmp"
+		if ! cmp -s "$tmp" /etc/crontabs/root; then
+			mv "$tmp" /etc/crontabs/root
+			/etc/init.d/cron reload
+		fi
+		;;
+	*) echo 'Usage: gxmobile-schedule sync|run' >&2; exit 2 ;;
+esac

@@ -1,0 +1,8 @@
+{
+  "admin/services/gxmobile": {
+    "title": "IPTV 扫描",
+    "order": 65,
+    "action": { "type": "view", "path": "gxmobile" },
+    "depends": { "acl": ["luci-app-gxmobile"], "uci": {"gxmobile": true} }
+  }
+}

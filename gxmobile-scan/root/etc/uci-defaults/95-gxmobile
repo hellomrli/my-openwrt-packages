@@ -1,0 +1,5 @@
+#!/bin/sh
+# Retire the old independent CLI cron job, retaining unrelated jobs.
+/etc/init.d/gxmobile-scan enable
+/usr/libexec/gxmobile-schedule sync || exit 1
+exit 0
