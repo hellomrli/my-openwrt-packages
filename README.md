@@ -26,7 +26,7 @@ DMCA 下架都不算罕见，一旦发生，固件立刻无法编译，而且往
 | 包 | 路径 | 上游 | 说明 |
 |----|------|------|------|
 | `dae` / `daed` / `luci-app-daede` | `openwrt-daede` | `kenzok8/openwrt-daede` | dae 与 daed 双后端及统一 LuCI 管理界面；需要内核 eBPF / BTF / XDP 支持。 |
-| `lucky` / `luci-app-lucky` | `luci-app-lucky` | `gdy666/luci-app-lucky` | Lucky 运行时和 LuCI 管理界面。 |
+| `lucky` / `luci-app-lucky` | `luci-app-lucky` | `gdy666/luci-app-lucky` + [官方文件服务](https://release.66666.host/) | Lucky 运行时和 LuCI 管理界面。核心包 3.x 只在官方文件服务发布，由 [`overrides/`](overrides/README.md) 固定；LuCI 界面仍跟随上游。 |
 | `watchdog` / `luci-app-watchdog` | `luci-app-watchdog` | `sirpdboy/luci-app-watchdog` | 登录 / SSH 失败登录防护。 |
 
 **dae 相关包只保留 `kenzok8/openwrt-daede` 一个来源。** 早先镜像过的
@@ -128,13 +128,29 @@ python3 scripts/sync-packages.py
 2. 浅克隆每个上游仓库。
 3. 移除上游 `.git` 元数据。
 4. 覆盖本仓库对应目录。
-5. 重新生成 [`SYNCED_SOURCES.md`](SYNCED_SOURCES.md)，记录分支和 commit。
+5. 用 [`overrides/`](overrides/README.md) 里的文件覆盖回必须偏离上游的包。
+6. 重新生成 [`SYNCED_SOURCES.md`](SYNCED_SOURCES.md)，记录分支、commit 和覆盖清单。
 
 GitHub Actions 每 6 小时自动同步一次，也可手动运行 `Sync OpenWrt Packages`。
 
 脚本是 fail-closed 的：先克隆成功才替换目录，所以上游临时不可达不会把镜像里的好副本删掉。
 代价是任何一个上游失败都会中止整轮同步——上游确实消失时，请把该条目从 `sources.json`
 移除，让其余包恢复更新。
+
+### 偏离上游的包
+
+上游仍在同步、但某个包必须长期不同于上游时，把文件放进 `overrides/`（目录结构与仓库
+根一致）。这样既保留了上游其余文件的自动更新，又不会被同步改回去。当前只有 Lucky 核心包
+需要这样做：
+
+- `gdy666/lucky` 的 GitHub release 停在 v2.27.2，3.x 只在
+  <https://release.66666.host/> 发布预编译二进制和 APK；
+- 上游 `gdy666/luci-app-lucky` 里的 `lucky/Makefile` 仍指向 GitHub release，
+  同步回来会让固件退回 2.27.2。
+
+`overrides/luci-app-lucky/lucky/Makefile` 里的版本、下载地址和逐架构 sha256 由固件仓库的
+`.github/scripts/pin-lucky-source.py` 在构建前按官方 `checksums.txt` 刷新，镜像中保存的是
+最近一次已知可用的状态。
 
 ## 维护规则
 
@@ -146,6 +162,10 @@ GitHub Actions 每 6 小时自动同步一次，也可手动运行 `Sync OpenWrt
 4. 需要编译进固件时，再在 my-ImmortalWrt 的 `.github/packages.json` 和 `.config` 中启用。
 
 新增本地维护包时，**不要**把路径写进 `sources.json`，否则下一次同步会覆盖本地改动。
+
+需要长期偏离某个同步包时，改 `overrides/<包路径>/` 里的副本并在
+[`overrides/README.md`](overrides/README.md) 写明原因；**不要**直接改同步出来的目录，
+下一次同步会把它覆盖回去。
 
 移除包时，同时删掉 `sources.json` 条目和对应目录——同步脚本不会清理已不在清单中的目录。
 
