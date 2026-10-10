@@ -62,10 +62,14 @@ def clone_source(source: dict, workdir: Path) -> dict:
 
     if dest.exists():
         shutil.rmtree(dest)
+    # ignore_patterns matches each walked entry's basename, so the
+    # multi-component ".github/workflows" never matched anything: upstream CI
+    # files were mirrored anyway, and then copied into the firmware build tree.
+    # Ignore the ".github" directory itself instead.
     shutil.copytree(
         clone_dir,
         dest,
-        ignore=shutil.ignore_patterns(".git", ".github/workflows", "*.md~"),
+        ignore=shutil.ignore_patterns(".git", ".github", "*.md~"),
     )
 
     return {
