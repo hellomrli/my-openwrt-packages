@@ -375,6 +375,14 @@ else
   echo "[WARN] vmlinux-btf not found in feed for ${GEO_SDK:-?}/${RESOLVED_ARCH}; install may fail on the BTF dependency."
 fi
 
+# Refresh the device's own package index first so kmod-* / geodata deps resolve;
+# failure is non-fatal (deps may already be cached or reachable).
+if [ "$PM" = "opkg" ]; then
+  opkg update || echo "[WARN] opkg update failed, dependency resolution may break"
+else
+  apk update || echo "[WARN] apk update failed, dependency resolution may break"
+fi
+
 echo "Installing (core first, then LuCI)..."
 _install_rc=0
 if [ "$PM" = "opkg" ]; then
@@ -386,25 +394,33 @@ else
   apk add --allow-untrusted $FILES || _install_rc=$?
 fi
 
-if [ "$_install_rc" -ne 0 ]; then
-  echo "[ERROR] Package install failed (exit $_install_rc). daed/dae was NOT installed."
+# opkg/apk can exit 0 yet skip the core package on a dependency hiccup (issue #30),
+# or exit non-zero on an unrelated package conflict (e.g. argon i18n file
+# ownership) while the core actually landed. Judge by the core binary, not the
+# exit code alone.
+core_missing=0
+case "$DAEDE_CORE" in
+  daed|both) [ -x /usr/bin/daed ] || core_missing=1 ;;
+esac
+case "$DAEDE_CORE" in
+  dae|both) [ -x /usr/bin/dae ] || core_missing=1 ;;
+esac
+
+if [ "$core_missing" -eq 1 ]; then
+  if [ "$_install_rc" -ne 0 ]; then
+    echo "[ERROR] Package install failed (exit $_install_rc) and the core binary is missing."
+  else
+    echo "[ERROR] Install finished but the core binary is missing — a dependency was likely skipped."
+  fi
   echo "        Most common cause: unmet dependencies (v2ray-geoip / v2ray-geosite / kmod-*)."
   echo "        Run '$PM update' first, ensure those deps are reachable, then retry."
-  exit "$_install_rc"
+  exit 1
 fi
 
-# opkg/apk can exit 0 yet skip the core package on a dependency hiccup, leaving
-# no /usr/bin/daed while still printing success (issue #30). Verify it landed.
-case "$DAEDE_CORE" in
-  daed|both)
-    [ -x /usr/bin/daed ] || { echo "[ERROR] Install finished but /usr/bin/daed is missing — a dependency was likely skipped; check the 'opkg install' output above."; exit 1; }
-    ;;
-esac
-case "$DAEDE_CORE" in
-  dae|both)
-    [ -x /usr/bin/dae ] || { echo "[ERROR] Install finished but /usr/bin/dae is missing — a dependency was likely skipped; check the 'opkg install' output above."; exit 1; }
-    ;;
-esac
+if [ "$_install_rc" -ne 0 ]; then
+  echo "[WARN] '$PM' reported an error (exit $_install_rc) but the core binary is present;"
+  echo "       the error likely comes from an unrelated package conflict. Continuing."
+fi
 
 echo "Install complete."
 
