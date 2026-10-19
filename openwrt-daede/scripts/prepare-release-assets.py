@@ -93,6 +93,22 @@ def collect(root, output, sha, run_id):
                 if source.is_file():
                     copy_once(source, output / "release" / source.name)
 
+            # Emit a per-arch manifest-daede.txt in the key=value format that
+            # scripts/install.sh expects (package name and sha256 per line).
+            manifest_lines = []
+            for package in ("dae", "daed", "luci-app-daede"):
+                pkg_matches = [p for p in package_files
+                               if p.name.startswith((package + "_", package + "-"))]
+                if len(pkg_matches) != 1:
+                    continue
+                name = pkg_matches[0].name
+                copied = output / "feed" / sdk / arch / name
+                manifest_lines.append(f"{package}={name}")
+                manifest_lines.append(f"{package}_sha256={digest(copied)}")
+            if manifest_lines:
+                (output / "feed" / sdk / arch / "manifest-daede.txt").write_text(
+                    "\n".join(manifest_lines) + "\n")
+
     files = []
     for path in sorted(output.rglob("*")):
         if path.is_file():

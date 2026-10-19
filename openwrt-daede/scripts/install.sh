@@ -215,7 +215,7 @@ resolve_from_github() {
   ext="$2"
   payload="$(fetch_text "$GITHUB_API_URL" || true)"
   [ -n "$payload" ] || return 1
-  urls="$(printf '%s\n' "$payload" | sed -n 's/.*"browser_download_url":[[:space:]]*"\([^"]*\)".*/\1/p')"
+  urls="$(printf '%s\n' "$payload" | grep -oE '"browser_download_url":[[:space:]]*"[^"]*"' | sed -n 's/"browser_download_url":[[:space:]]*"\([^"]*\)"/\1/p')"
   [ -n "$urls" ] || return 1
 
   plan=""
