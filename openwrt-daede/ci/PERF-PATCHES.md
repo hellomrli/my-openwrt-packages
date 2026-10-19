@@ -22,20 +22,27 @@ fix onto this lineage.
 
 ## Self-owned patches that must survive every sync
 
-The repository currently carries 18 patch files:
+The repository currently carries 17 patch files:
 
 - `dae/patches`: 1 regular dae patch.
 - `dae/patches_arm`: 2 ARM32 compatibility patches.
 - `daed/patches`: 11 daed reliability and update patches.
 - `daed/patches_arm`: 2 ARM32 compatibility patches for the embedded dae core.
-- `ci/patches/outbound`: 2 patches (SSR buffered-reader fix + temporary REALITY
-  client-version bump for Xray-core 26.7.x, see `ci/patches/outbound/README.md`).
+- `ci/patches/outbound`: 1 patch (temporary REALITY client-version bump for
+  Xray-core 26.7.x, see `ci/patches/outbound/README.md`).
 - `ci/patches/quic-go`: currently empty; retained for future backports.
 
 On 2026-08-28 every patch then present was checked against the pinned upstream
 source. None was equivalently absorbed, and all of them remain required. In
 particular, outbound still lacks the SSR `unwrapConn` fix and a native REALITY
 version-byte strategy.
+
+Update (2026.10.18 bump): upstream absorbed the SSR fix — the r11 optimization
+line folded it into `perf/complete-optimizations` as
+`netproxy.UnwrapIntrinsicConn` with the `ssr_obfs_test.go` regression test — so
+the 0001 patch was deleted. Outbound still has no native REALITY version-byte
+strategy; the 0002 patch remains, rebased onto the new `realityVersionX/Y/Z`
+const form.
 
 The `patch-absorbed` job in `auto-bump.yml` checks every regular, ARM, outbound
 and quic-go patch in package order. It reports a patch when reverse apply starts
