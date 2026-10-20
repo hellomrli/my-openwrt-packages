@@ -97,8 +97,17 @@
 
 ### 一键安装
 
+此脚本直接下载安装包，不会把软件源写入系统。若需要在 LuCI「更新」页持续在线升级，还需按下方步骤配置软件源。
+默认安装 `daed` 和 LuCI；如需同时安装独立的 `dae` 内核，可使用 `DAEDE_CORE=both`。
+
 ```bash
 wget -O - https://raw.githubusercontent.com/kenzok8/openwrt-daede/refs/heads/main/scripts/install.sh | ash
+```
+
+同时安装两个内核：
+
+```bash
+wget -O - https://raw.githubusercontent.com/kenzok8/openwrt-daede/refs/heads/main/scripts/install.sh | DAEDE_CORE=both ash
 ```
 
 大陆网络加速：
@@ -109,7 +118,7 @@ wget --no-check-certificate -O - https://ghfast.top/https://raw.githubuserconten
 
 ### Release 手动安装
 
-在 OpenWrt 路由器上执行以下命令：
+安装并配置项目软件源后，LuCI 才能查询和升级软件包。在 OpenWrt 路由器上执行以下命令：
 
 ```bash
 wget -qO- https://down.dllkids.xyz/openwrt-feed/openwrt-feed-setup.sh | sh
@@ -121,8 +130,15 @@ wget -qO- https://down.dllkids.xyz/openwrt-feed/openwrt-feed-setup.sh | sh
 - ✅ 检测该架构 feed 是否存在（覆盖 `Packages.gz` / `APKINDEX.tar.gz` / `packages.adb` 三类索引），缺则回退 `all`
 - ✅ 下载对应公钥，opkg → `opkg-key add`；apk → 放入 `/etc/apk/keys/`
 - ✅ 写入/更新源配置（`customfeeds.conf` 或 `/etc/apk/repositories`），不会重复堆积
-- ✅ 执行 `opkg update` / `apk update`，签名校验失败时自动回退 `--allow-untrusted`
-- ✅ `apk update && apk add dae daed luci-app-daede`
+- ✅ 执行 `opkg update` / `apk update`；该脚本只配置软件源，不安装 dae/daed
+
+当前公开的源配置脚本在 `apk update` 失败时会尝试 `--allow-untrusted`。如果出现这条警告，请先修复软件源或公钥，再使用 LuCI 在线升级；不要把放宽校验的刷新结果当成已通过签名验证。
+
+### 维护者发布
+
+手动发布代码修复时，在 Actions 的「Sync and release dae/daed」中选择 `current`，等待候选检查和 16 目标构建成功。用该次构建的包在测试设备上复测后，在「Promote verified daede candidate」中只填写运行摘要里的候选 SHA。晋升会复用已验证的包，并等待公开源聚合完成。`release.yml` 单独运行只构建候选包，不会更新公开源。
+
+定时上游同步仍按 `core` / `perf` 检查、验证和自动晋升；`ENABLE_UNATTENDED_RELEASE` 控制定时自动发布，不影响手动 `current` 候选构建。
 
 ### 卸载
 

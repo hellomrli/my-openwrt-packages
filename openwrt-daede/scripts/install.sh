@@ -521,6 +521,9 @@ if [ "$_install_rc" -ne 0 ]; then
 fi
 
 echo "Install complete."
+echo "[INFO] This one-click installer does not add a persistent package feed."
+echo "[INFO] LuCI online upgrades require a configured, signed daede feed."
+echo "[INFO] See https://github.com/kenzok8/openwrt-daede#release-%E6%89%8B%E5%8A%A8%E5%AE%89%E8%A3%85"
 
 # Supply kernel BTF if the firmware ships none, else dae/daed eBPF won't load.
 ensure_btf "$PM" "$RESOLVED_ARCH" || true
