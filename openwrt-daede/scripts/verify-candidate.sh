@@ -123,9 +123,16 @@ while IFS=$'\t' read -r step run_id attempt head_sha job_name expected_path; do
 
     # job 级核对：该 attempt 里对应 job 必须 success
     # job 名用前缀匹配：smoke 的 job 名带矩阵参数（如 "build (x86_64, 25.12)"）。
-    job_conc=$(gh api "repos/${REPO}/actions/runs/${run_id}/attempts/${attempt}/jobs" --paginate \
-        --jq --arg job "$job_name" '[.jobs[] | select(.name | startswith($job)) | .conclusion] | first // "missing"') \
+    # 各 workflow 的 job 数都小于一页（≤30），不需要 --paginate。
+    jobs_json=$(gh api "repos/${REPO}/actions/runs/${run_id}/attempts/${attempt}/jobs") \
         || fail "$step: cannot read jobs for run $run_id attempt $attempt"
+    job_conc=$(printf '%s' "$jobs_json" | python3 -c '
+import json, sys
+job = sys.argv[1]
+data = json.load(sys.stdin)
+matches = [j["conclusion"] for j in data["jobs"] if j["name"].startswith(job)]
+print(matches[0] if matches and matches[0] else "missing")
+' "$job_name")
     [[ "$job_conc" == "success" ]] || \
         fail "$step: job '$job_name' concluded $job_conc (run $run_id attempt $attempt)"
 
