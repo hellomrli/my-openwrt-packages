@@ -21,18 +21,20 @@ jq -e --arg sha "$CANDIDATE_SHA" --argjson run "$BUILD_RUN_ID" \
     publish/manifest.json >/dev/null || fail "manifest does not identify this candidate and build"
 cp publish/manifest.json publish/feed/release-manifest.json
 
-run_state=$(gh run view "$BUILD_RUN_ID" --json status,conclusion,headSha \
-    --jq '.status + " " + (.conclusion // "") + " " + .headSha')
-[[ "$run_state" = "completed success $CANDIDATE_SHA" ]] || fail "build run is not successful for the candidate: $run_state"
+# 完整验证来源校验：用 GitHub API 证明 candidate 经过了全部验证
+#（assemble dae/daed、audit、单构建、16 目标矩阵），且每项验证的都是该 SHA。
+# verification.json 只做关联，证明来自 API。fail-closed，发生在改动 main 之前。
+MANIFEST_PATH="$PWD/publish/manifest.json" \
+    bash "$(dirname "$0")/verify-candidate.sh"
 
 git fetch -q origin refs/heads/main
 remote_main=$(git ls-remote origin refs/heads/main | cut -f1)
-remote_staging=$(git ls-remote origin "refs/heads/$STAGING" | cut -f1)
 [[ "$remote_main" = "$BASE_SHA" || "$remote_main" = "$CANDIDATE_SHA" ]] || fail "main moved; candidate must be rebuilt"
-if [[ "$remote_main" = "$BASE_SHA" ]]; then
-    [[ "$remote_staging" = "$CANDIDATE_SHA" ]] || fail "candidate branch moved or vanished"
-    git fetch -q origin "refs/heads/$STAGING"
-fi
+# 冻结语义：candidate 由 tag 标识，不再依赖 staging 分支位置。
+# staging 分支在冻结后可能已移动（新同步开始），不影响本次晋升。
+candidate_tag_sha=$(git ls-remote origin "refs/tags/candidate/${CANDIDATE_SHA}" | cut -f1)
+[[ "$candidate_tag_sha" = "$CANDIDATE_SHA" ]] || fail "candidate tag missing or moved"
+git fetch -q origin "$CANDIDATE_SHA"
 git merge-base --is-ancestor "$BASE_SHA" "$CANDIDATE_SHA" || fail "candidate does not descend from its base"
 
 aggregate_workflow=$(GH_TOKEN="$AGGREGATE_FEED_TOKEN" gh api \
@@ -165,6 +167,11 @@ aggregate_run=${aggregate_url##*/}
 GH_TOKEN="$AGGREGATE_FEED_TOKEN" gh run watch "$aggregate_run" \
     -R kenzok8/openwrt-clashoo --exit-status
 gh release edit "$tag" --draft=false --prerelease=false
+# 冻结 tag 已完成使命（v* tag + release 才是 durable 引用）；删掉防止累积。
+# 失败不致命：prune 工作流会清理 7 天以上的残留 candidate tag。
+git -c credential.helper='!gh auth git-credential' push origin \
+    --delete "refs/tags/candidate/${CANDIDATE_SHA}" 2>/dev/null \
+    || echo "warning: cannot delete candidate tag (non-fatal)"
 rclone copyto "$rclone_dir/pending.json" "$state/completed/${CANDIDATE_SHA}.json" --immutable
 rclone cat "$state/completed/${CANDIDATE_SHA}.json" > "$rclone_dir/completed.json"
 cmp -s "$rclone_dir/pending.json" "$rclone_dir/completed.json" || fail "completion state differs"
