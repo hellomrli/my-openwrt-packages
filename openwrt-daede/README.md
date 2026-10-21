@@ -98,16 +98,18 @@
 ### 一键安装
 
 此脚本直接下载安装包，不会把软件源写入系统。若需要在 LuCI「更新」页持续在线升级，还需按下方步骤配置软件源。
-默认安装 `daed` 和 LuCI；如需同时安装独立的 `dae` 内核，可使用 `DAEDE_CORE=both`。
+默认安装 `dae`、`daed` 和 LuCI，并下载 GeoIP、GeoSite 依赖；仅需 `daed` 时可设置 `DAEDE_CORE=daed`。
 
 ```bash
 wget -O - https://raw.githubusercontent.com/kenzok8/openwrt-daede/refs/heads/main/scripts/install.sh | ash
 ```
 
-同时安装两个内核：
+此前只安装 `daed` 的设备，重新运行默认命令即可补装 `dae`，无需先配置软件源。
+
+仅安装 `daed` 内核：
 
 ```bash
-wget -O - https://raw.githubusercontent.com/kenzok8/openwrt-daede/refs/heads/main/scripts/install.sh | DAEDE_CORE=both ash
+wget -O - https://raw.githubusercontent.com/kenzok8/openwrt-daede/refs/heads/main/scripts/install.sh | DAEDE_CORE=daed ash
 ```
 
 大陆网络加速：
