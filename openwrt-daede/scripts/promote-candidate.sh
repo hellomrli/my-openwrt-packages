@@ -199,8 +199,11 @@ gh release view "$tag" --json assets --jq '.assets[].name' | sort > "$rclone_dir
 diff -u "$rclone_dir/expected-assets" "$rclone_dir/actual-assets" || fail "Release has unexpected or missing assets"
 
 feed="r2:${R2_BUCKET}/openwrt-feed/daed"
+echo "=== [R2] uploading daed feed ==="
 rclone sync publish/feed/ "$feed/" --checksum --fast-list --transfers 8 --checkers 16
+echo "=== [R2] verifying uploaded daed feed ==="
 rclone check publish/feed/ "$feed/" --download --fast-list
+echo "=== [R2] daed feed upload verified ==="
 
 aggregate_url=$(GH_TOKEN="$AGGREGATE_FEED_TOKEN" gh workflow run aggregate-feed.yml \
     -R kenzok8/openwrt-clashoo --ref main \
@@ -215,6 +218,16 @@ gh release edit "$tag" --draft=false --prerelease=false
 git -c credential.helper='!gh auth git-credential' push origin \
     --delete "refs/tags/candidate/${CANDIDATE_SHA}" 2>/dev/null \
     || echo "warning: cannot delete candidate tag (non-fatal)"
+# staging 分支同样只是 gate 阶段的临时工作区；发布成功后一并删除，
+# 防止 auto-bump-staging-* 累积。先核对远端 staging 仍指向本次候选，
+# 避免误删已移动的同名分支；删除失败不致命。
+if [ "$(git ls-remote origin "refs/heads/${STAGING}" | cut -f1)" = "$CANDIDATE_SHA" ]; then
+    git -c credential.helper='!gh auth git-credential' push origin \
+        --delete "refs/heads/${STAGING}" 2>/dev/null \
+        || echo "warning: cannot delete staging branch (non-fatal)"
+else
+    echo "staging branch ${STAGING} no longer points at ${CANDIDATE_SHA}; leaving it"
+fi
 # --checksum：promote 中断后重跑时文件已存在但内容相同，按内容比对可幂等。
 rclone copyto "$rclone_dir/pending.json" "$state/completed/${CANDIDATE_SHA}.json" --immutable --checksum
 rclone cat "$state/completed/${CANDIDATE_SHA}.json" > "$rclone_dir/completed.json"
