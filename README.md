@@ -19,15 +19,26 @@ DMCA 下架都不算罕见，一旦发生，固件立刻无法编译，而且往
 
 ### 当前固件使用
 
-这三个包由 my-ImmortalWrt 的
+这些包由 my-ImmortalWrt 的
 [`.github/packages.json`](https://github.com/hellomrli/my-ImmortalWrt/blob/main/.github/packages.json)
+与
+[`.github/packages-honk.json`](https://github.com/hellomrli/my-ImmortalWrt/blob/main/.github/packages-honk.json)
 声明，构建时按路径抽取。
 
 | 包 | 路径 | 上游 | 说明 |
 |----|------|------|------|
+| `honk` / `luci-app-honk` | `openwrt-honk` | `kenzok8/openwrt-honk` | Honk 透明代理核心 + Doona 界面 + LuCI 管理页；核心是上游预编译 Rust 二进制，随 release 资源一起镜像。 |
 | `dae` / `daed` / `luci-app-daede` | `openwrt-daede` | `kenzok8/openwrt-daede` | dae 与 daed 双后端及统一 LuCI 管理界面；需要内核 eBPF / BTF / XDP 支持。 |
 | `lucky` / `luci-app-lucky` | `luci-app-lucky` | `gdy666/luci-app-lucky` + [官方文件服务](https://release.66666.host/) | Lucky 运行时和 LuCI 管理界面。核心包 3.x 只在官方文件服务发布，由 [`overrides/`](overrides/README.md) 固定；LuCI 界面仍跟随上游。 |
 | `watchdog` / `luci-app-watchdog` | `luci-app-watchdog` | `sirpdboy/luci-app-watchdog` | 登录 / SSH 失败登录防护。 |
+
+**Honk 按 release 而不是按分支同步。** 上游的 `honk/Makefile` 只带一个指向滚动
+`staging` release、哈希为 `SKIP` 的兜底；真正可用的是每个 release 附带的
+`generated-stage.mk`、`generated-doona-stage.mk`、来源清单，以及被它们锁定 SHA256 的
+核心与 Doona 归档。`scripts/honk_sync.py` 因此以最新的 `v<日期>-r<构建号>` release 为准：
+解析出对应的 wrapper commit，同步 `honk/` 与 `luci-app-honk/`，校验并重新上传全部资源到
+本仓库的 `honk-source-<构建号>` release，再把两个 stage 文件里的下载地址改写成该 release。
+固件构建只访问本仓库，不再需要 `kenzok8/openwrt-honk` 仍然存在。
 
 **dae 相关包只保留 `kenzok8/openwrt-daede` 一个来源。** 早先镜像过的
 `QiuSimons/luci-app-daed`（旧 `dae/` 路径）已移除：固件从 my-ImmortalWrt commit `8955399`
@@ -81,7 +92,11 @@ git clone --depth 1 https://github.com/hellomrli/my-openwrt-packages.git /tmp/my
 cp -r /tmp/my-openwrt-packages/openwrt-daede     package/dae
 cp -r /tmp/my-openwrt-packages/luci-app-lucky    package/lucky
 cp -r /tmp/my-openwrt-packages/luci-app-watchdog package/watchdog
+cp -r /tmp/my-openwrt-packages/openwrt-honk     package/honk
 ```
+
+`openwrt-honk` 目录里的 stage 文件已经把 `PKG_SOURCE_URL` 指向本仓库的 release，
+`make download` 会取回哈希锁定的核心和 Doona 归档；不要把这些 URL 改回上游。
 
 然后在 `.config` 中显式选择需要的包：
 
@@ -125,7 +140,8 @@ python3 scripts/sync-packages.py
 流程：
 
 1. 读取 `sources.json`。
-2. 浅克隆每个上游仓库。
+2. 浅克隆每个上游仓库；`driver: "honk-release"` 的条目改走
+   [`scripts/honk_sync.py`](scripts/honk_sync.py)，按上游最新 release 同步并镜像其资源。
 3. 移除上游 `.git` 元数据。
 4. 覆盖本仓库对应目录。
 5. 用 [`overrides/`](overrides/README.md) 里的文件覆盖回必须偏离上游的包。
@@ -157,6 +173,8 @@ GitHub Actions 每 6 小时自动同步一次，也可手动运行 `Sync OpenWrt
 新增同步包：
 
 1. 在 `sources.json` 增加 `name` / `path` / `repo`（可选 `branch`）和 `description`。
+   上游包依赖 release 资源（而不是只靠分支源码）时，加 `driver: "honk-release"` 并实现对应
+   的同步逻辑；目前只有 Honk 属于这种情况。
 2. 运行 `python3 scripts/sync-packages.py`。
 3. 检查变更目录和 `SYNCED_SOURCES.md`。
 4. 需要编译进固件时，再在 my-ImmortalWrt 的 `.github/packages.json` 和 `.config` 中启用。

@@ -65,5 +65,12 @@
     "repo": "https://github.com/sbwml/packages_lang_golang.git",
     "branch": "27.x",
     "description": "OpenWrt Golang package from sbwml 27.x"
+  },
+  {
+    "name": "openwrt-honk",
+    "path": "openwrt-honk",
+    "repo": "https://github.com/kenzok8/openwrt-honk.git",
+    "driver": "honk-release",
+    "description": "Honk transparent proxy core, Doona UI and luci-app-honk, mirrored together with its hash-locked release assets"
   }
 ]

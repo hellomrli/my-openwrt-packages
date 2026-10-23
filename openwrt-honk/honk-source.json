@@ -1,0 +1,43 @@
+{
+  "format": 1,
+  "upstream": "https://github.com/kenzok8/openwrt-honk.git",
+  "upstream_release": "v2026.10.21-r39547891412",
+  "source_tag": "source-39547891412",
+  "wrapper_commit": "29857755c037f36d7a49fc888eef6efa90bf33fb",
+  "mirror_repository": "https://github.com/hellomrli/my-openwrt-packages.git",
+  "mirror_release": "honk-source-39547891412",
+  "release_url": "https://github.com/hellomrli/my-openwrt-packages/releases/download/honk-source-39547891412",
+  "core": {
+    "repository": "https://github.com/Glassyiris/honk.git",
+    "commit": "aebc0d78d567cac1cd74ee9c56674857c5441451",
+    "version": "0.0.1-alpha",
+    "features": "clash-api,ebpf,rprx,native-api",
+    "architectures": [
+      "x86_64",
+      "aarch64",
+      "armv7"
+    ]
+  },
+  "assets": {
+    "honk_x86_64": {
+      "name": "honk-core-aebc0d78d567cac1cd74ee9c56674857c5441451-x86_64.tar.gz",
+      "sha256": "336fbd862e61be7340a871495032d57093c0f564a1efe0d4709635a3d39a3ec6",
+      "size": 12768498
+    },
+    "honk_aarch64": {
+      "name": "honk-core-aebc0d78d567cac1cd74ee9c56674857c5441451-aarch64.tar.gz",
+      "sha256": "2a45ed3b5dcb97a18ab1cdd12c111e7bf0e0e99e67a850bc03646a70948e36d7",
+      "size": 12102649
+    },
+    "honk_armv7": {
+      "name": "honk-core-aebc0d78d567cac1cd74ee9c56674857c5441451-armv7.tar.gz",
+      "sha256": "dc7f5711bf96c3246be8993e2b729255ea51f9015f8037afe772e4737d55f0cf",
+      "size": 12383009
+    },
+    "doona": {
+      "name": "doona-369aee8f-f6612106faf8.tar.gz",
+      "sha256": "f6612106faf8897178f91d464e0ba5f99eb46220eba0d984518104dd87fdcf57",
+      "size": 1279996
+    }
+  }
+}

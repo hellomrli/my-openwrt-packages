@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 """Sync selected OpenWrt packages from upstream Git repositories.
 
-The sync is a plain copy of each upstream tree, with one addition: files under
-``overrides/`` are copied over the synced result afterwards.  Upstream packages
-this firmware has to diverge from (Lucky 3.x no longer ships from GitHub at all,
-see ``overrides/README.md``) would otherwise be reverted on every run, and a
-revert here silently changes what the firmware builds.
+Most sources are a plain copy of the upstream tree.  ``driver: "honk-release"``
+sources are mirrored release-by-release instead, because the Honk packages are
+only usable together with the generated stage files and hash-locked tarballs
+that upstream publishes per release (see ``scripts/honk_sync.py``).
+
+Files under ``overrides/`` are copied over every synced result afterwards.
+Upstream packages this firmware has to diverge from (Lucky 3.x no longer ships
+from GitHub at all, see ``overrides/README.md``) would otherwise be reverted on
+every run, and a revert here silently changes what the firmware builds.
 """
 
 from __future__ import annotations
@@ -17,6 +21,8 @@ import sys
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
+
+import honk_sync
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCES = ROOT / "sources.json"
@@ -143,7 +149,12 @@ def write_summary(records: list[dict], applied: list[str]) -> None:
 def main() -> int:
     sources = json.loads(SOURCES.read_text(encoding="utf-8"))
     with tempfile.TemporaryDirectory(prefix="openwrt-packages-") as tmp:
-        records = [clone_source(source, Path(tmp)) for source in sources]
+        records = []
+        for source in sources:
+            if source.get("driver") == "honk-release":
+                records.append(honk_sync.sync(source))
+            else:
+                records.append(clone_source(source, Path(tmp)))
     applied = apply_overrides({item["path"] for item in records})
     write_summary(records, applied)
     print("Sync complete.")
@@ -153,6 +164,6 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except SyncError as exc:
+    except (SyncError, honk_sync.SyncError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         raise SystemExit(1)
