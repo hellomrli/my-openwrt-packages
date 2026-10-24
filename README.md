@@ -64,6 +64,13 @@ DMCA 下架都不算罕见，一旦发生，固件立刻无法编译，而且往
 
 ### 本地维护
 
+[`luci-app-iptv-catchup/`](luci-app-iptv-catchup/) 提供广西移动 IPTV 回放与时移的
+LuCI 配置页及 Python 服务，当前版本 **0.1.0-r1**。独立使用 LAN 8088 端口，
+不录制、不代理视频，不替换现有直播网关或扫描器；内置 124 个频道、79 个回放白名单。
+可安装 APK 见 [IPTV 插件 Release](https://github.com/hellomrli/my-openwrt-packages/releases/tag/iptv-catchup-v0.1.0-r1)，
+旧版 opkg 固件需使用匹配 SDK 编译 IPK。配置、订阅及使用边界见
+[插件文档](luci-app-iptv-catchup/README.md)。此目录不加入 `sources.json`，自动同步不会覆盖。
+
 [`luci-app-gxmobile/`](luci-app-gxmobile/) 和 [`gxmobile-scan/`](gxmobile-scan/)
 提供广西移动 IPTV 扫描的 LuCI 界面与 Go 后端，当前版本为 **1.2.0-r2**。
 支持手动快速 / 完整扫描、每日 / 每周定时扫描、频道管理及 M3U 导出，当前支持 x86_64。

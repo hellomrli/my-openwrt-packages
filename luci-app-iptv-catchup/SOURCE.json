@@ -1,0 +1,24 @@
+{
+  "source": "https://github.com/hellomrli/my-IPTV",
+  "note": "Exported from reviewed working tree; hashes identify the exact bundled source.",
+  "sha256": {
+    ".gitignore": "2a1bb63cc9d2a887b67b060ac98cedd6a535c1433ec9256253504c7d3bf932eb",
+    "Makefile": "df0cb7b28447a549970ade746c337c492f05698f47e0ad67dc6cb7e72c2a7abf",
+    "README.md": "1e024465425b9c4055ced6493c17afcbcd41dfd8722705b35523dd3e2b0f4eb1",
+    "root/etc/config/iptv-catchup": "b35c260c60bd6e1410dc00f71d396ed3479a9a7674c220c8c552f7573642daea",
+    "root/etc/init.d/iptv-catchup": "43d669812ab4008b161fccbe490753f562a21224cddccd4354be95282e9a94e2",
+    "root/etc/iptv-catchup/IPTV.m3u": "f496a884c33b5bf37c6482822139e5171f1a8e8ac4172ba7d6f8b3799ea1346f",
+    "root/etc/iptv-catchup/catchup.json": "26282389f36cb4ea282c66567da67dd82ab40661b7cd8d66dcdea9ca8781dffd",
+    "root/usr/lib/iptv-catchup/build_playlists.py": "f17cef5e5967c2a6766a66f7b139886160dba0aed7fb6d6666420fa2fa991bbb",
+    "root/usr/lib/iptv-catchup/catchup_server.py": "5f02ae5212e98146b289c3e100f51540eb9f03c7071e49b9aac60d0e91bc873e",
+    "root/usr/lib/iptv-catchup/openwrt_service.py": "009adaf91988aaebabd77d9a6d9871e129b9aff1320d3b84dbfc67e88c6e3265",
+    "root/usr/lib/iptv-catchup/sync_iptv.py": "4ab64d882c24c4e73d9ffba4d2d53fc1056cb323835b5f27b4e37a65bd2f7457",
+    "root/usr/share/luci/menu.d/luci-app-iptv-catchup.json": "6e164f77209026d71e34a23a0e4b15caee009327168731df44b272d5966ad7d6",
+    "root/usr/share/rpcd/acl.d/luci-app-iptv-catchup.json": "382c7a50e695250827b1b51e028744b2cc35a094ecc244ef24171dc47e894cf2",
+    "root/www/luci-static/resources/view/iptv-catchup.js": "547a20b46f700c3de52314e6776c53966198fb672aed60364587dcc1de88e39b",
+    "tests/check.py": "11d300a1e7a831ad591fd55016aa1e6dd2f3bfd3ea9ee4bf4ecb98215c9c6337",
+    "tests/test_catchup.py": "0eeb4741d7a650c2d5a8711ae073fcb0d1c012b064e11b605c668190428b696a",
+    "tests/test_router.py": "6ede1c7363ed664201e145405868c2a0297a297ffe6da91d293849b3e7042691",
+    "tools/build_apk.py": "19c47c0d4ff62c1538cd970c34042ea2466bd25ce0e2049b5640d051e3c20d5b"
+  }
+}

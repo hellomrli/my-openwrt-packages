@@ -1,0 +1,256 @@
+#EXTM3U x-tvg-url="https://raw.githubusercontent.com/hellomrli/my-epg/main/epg.xml"
+#EXTINF:-1 tvg-id="1" tvg-chno="1" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/CCTV1.png" group-title="央视",CCTV1
+http://192.168.50.250:8080/3221225934/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="2" tvg-chno="2" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/CCTV2.png" group-title="央视",CCTV2
+http://192.168.50.250:8080/3221225948/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="3" tvg-chno="3" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/CCTV3.png" group-title="央视",CCTV3
+http://192.168.50.250:8080/3221225916/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="4" tvg-chno="4" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/CCTV4.png" group-title="央视",CCTV4
+http://192.168.50.250:8080/3221225922/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="5" tvg-chno="5" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/CCTV5.png" group-title="央视",CCTV5
+http://192.168.50.250:8080/3221225801/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="6" tvg-chno="6" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/CCTV5%2B.png" group-title="央视",CCTV5+
+http://192.168.50.250:8080/3221225998/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="7" tvg-chno="7" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/CCTV6.png" group-title="央视",CCTV6
+http://192.168.50.250:8080/3221225936/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="8" tvg-chno="8" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/CCTV7.png" group-title="央视",CCTV7
+http://192.168.50.250:8080/3221225892/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="9" tvg-chno="9" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/CCTV8.png" group-title="央视",CCTV8
+http://192.168.50.250:8080/3221226001/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="10" tvg-chno="10" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/CCTV9.png" group-title="央视",CCTV9
+http://192.168.50.250:8080/3221225939/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="11" tvg-chno="11" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/CCTV10.png" group-title="央视",CCTV10
+http://192.168.50.250:8080/3221226004/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="12" tvg-chno="12" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/CCTV11.png" group-title="央视",CCTV11
+http://192.168.50.250:8080/3221225895/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="13" tvg-chno="13" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/CCTV12.png" group-title="央视",CCTV12
+http://192.168.50.250:8080/3221226013/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="14" tvg-chno="14" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/CCTV13.png" group-title="央视",CCTV13
+http://192.168.50.250:8080/3221226046/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="15" tvg-chno="15" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/CCTV14.png" group-title="央视",CCTV14
+http://192.168.50.250:8080/3221225901/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="16" tvg-chno="16" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/CCTV15.png" group-title="央视",CCTV15
+http://192.168.50.250:8080/3221225945/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="1864" tvg-chno="17" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/CCTV16.png" group-title="央视",CCTV16
+http://192.168.50.250:8080/3221225937/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="17" tvg-chno="18" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/CCTV17.png" group-title="央视",CCTV17
+http://192.168.50.250:8080/3221225910/index.m3u8?servicetype=1
+
+#EXTINF:-1 tvg-id="43" tvg-chno="200" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%B9%BF%E8%A5%BF%E5%8D%AB%E8%A7%86.png" group-title="广西",广西卫视
+http://192.168.50.250:8080/3221226374/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="897" tvg-chno="201" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%B9%BF%E8%A5%BF%E6%96%B0%E9%97%BB.png" group-title="广西",广西新闻
+http://192.168.50.250:8080/3221226407/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="893" tvg-chno="202" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%B9%BF%E8%A5%BF%E9%83%BD%E5%B8%82.png" group-title="广西",广西都市
+http://192.168.50.250:8080/3221226335/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="895" tvg-chno="203" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%B9%BF%E8%A5%BF%E5%BD%B1%E8%A7%86.png" group-title="广西",广西影视
+http://192.168.50.250:8080/3221226336/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="892" tvg-chno="204" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%B9%BF%E8%A5%BF%E7%BB%BC%E8%89%BA%E6%97%85%E6%B8%B8.png" group-title="广西",广西综艺旅游
+http://192.168.50.250:8080/3221226409/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="gx-lesigou" tvg-chno="205" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%B9%BF%E8%A5%BF%E4%B9%90%E6%80%9D%E8%B4%AD.png" group-title="广西",广西乐思购
+http://192.168.50.250:8080/3221226420/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="gx-mobile" tvg-chno="206" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%B9%BF%E8%A5%BF%E7%A7%BB%E5%8A%A8.png" group-title="广西",广西移动
+http://192.168.50.250:8080/3221226338/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="gx-nn-news" tvg-chno="207" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%8D%97%E5%AE%81%E6%96%B0%E9%97%BB%E7%BB%BC%E5%90%88.png" group-title="广西",南宁新闻综合
+http://192.168.50.250:8080/3221226341/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="gx-nn-movie" tvg-chno="208" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%8D%97%E5%AE%81%E5%BD%B1%E8%A7%86%E5%A8%B1%E4%B9%90.png" group-title="广西",南宁影视娱乐
+http://192.168.50.250:8080/3221226337/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="gx-nn-life" tvg-chno="209" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%8D%97%E5%AE%81%E6%96%87%E6%97%85%E7%94%9F%E6%B4%BB.png" group-title="广西",南宁文旅生活
+http://192.168.50.250:8080/3221226344/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="gx-lz-news" tvg-chno="210" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E6%9F%B3%E5%B7%9E%E6%96%B0%E9%97%BB%E7%BB%BC%E5%90%88.png" group-title="广西",柳州新闻综合
+http://192.168.50.250:8080/3221226348/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="gx-lz-edu" tvg-chno="211" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E6%9F%B3%E5%B7%9E%E7%A7%91%E6%95%99.png" group-title="广西",柳州科教
+http://192.168.50.250:8080/3221226434/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="gx-gl-news" tvg-chno="212" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E6%A1%82%E6%9E%97%E6%96%B0%E9%97%BB%E7%BB%BC%E5%90%88.png" group-title="广西",桂林新闻综合
+http://192.168.50.250:8080/3221226343/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="gx-gl-edu" tvg-chno="213" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E6%A1%82%E6%9E%97%E7%A7%91%E6%95%99%E6%97%85%E6%B8%B8.png" group-title="广西",桂林科教旅游
+http://192.168.50.250:8080/3221226339/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="gx-gl-public" tvg-chno="214" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E6%A1%82%E6%9E%97%E5%85%AC%E5%85%B1%E9%A2%91%E9%81%93.png" group-title="广西",桂林公共频道
+http://192.168.50.250:8080/3221226342/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="gx-yl-news" tvg-chno="215" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E7%8E%89%E6%9E%97%E6%96%B0%E9%97%BB%E7%BB%BC%E5%90%88.png" group-title="广西",玉林新闻综合
+http://192.168.50.250:8080/3221226354/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="gx-gg-news" tvg-chno="216" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E8%B4%B5%E6%B8%AF%E6%96%B0%E9%97%BB%E7%BB%BC%E5%90%88.png" group-title="广西",贵港新闻综合
+http://192.168.50.250:8080/3221226345/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="gx-gg-edu" tvg-chno="217" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E8%B4%B5%E6%B8%AF%E7%A7%91%E6%95%99%E7%94%9F%E6%B4%BB.png" group-title="广西",贵港科教生活
+http://cdnrrs.gx.chinamobile.com/PLTV/7777777G/7777777/224/3221226424/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="gx-bh-news" tvg-chno="218" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%8C%97%E6%B5%B7%E6%96%B0%E9%97%BB%E7%BB%BC%E5%90%88.png" group-title="广西",北海新闻综合
+http://192.168.50.250:8080/3221226346/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="gx-bh-edu" tvg-chno="219" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%8C%97%E6%B5%B7%E7%BB%8F%E6%B5%8E%E7%A7%91%E6%95%99.png" group-title="广西",北海经济科教
+http://192.168.50.250:8080/3221226431/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="gx-bs" tvg-chno="220" tvg-name="百色综合 超清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E7%99%BE%E8%89%B2%E7%BB%BC%E5%90%88.png" group-title="广西",百色综合
+http://192.168.50.250:8080/3221226353/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="gx-lb" tvg-chno="221" tvg-name="来宾电视台综合 标清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E6%9D%A5%E5%AE%BE%E7%94%B5%E8%A7%86%E5%8F%B0%E7%BB%BC%E5%90%88.png" group-title="广西",来宾电视台综合
+http://192.168.50.250:8080/3221226357/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="gx-wz-news" tvg-chno="222" tvg-name="梧州新闻综合 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E6%A2%A7%E5%B7%9E%E6%96%B0%E9%97%BB%E7%BB%BC%E5%90%88.png" group-title="广西",梧州新闻综合
+http://192.168.50.250:8080/3221226349/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="gx-wz-edu" tvg-chno="223" tvg-name="梧州教育生活 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E6%A2%A7%E5%B7%9E%E6%95%99%E8%82%B2%E7%94%9F%E6%B4%BB.png" group-title="广西",梧州教育生活
+http://192.168.50.250:8080/3221226444/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="gx-fcg" tvg-chno="224" tvg-name="防城港新闻综合 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E9%98%B2%E5%9F%8E%E6%B8%AF%E6%96%B0%E9%97%BB%E7%BB%BC%E5%90%88.png" group-title="广西",防城港新闻综合
+http://192.168.50.250:8080/3221226350/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="gx-cz" tvg-chno="225" tvg-name="崇左综合 标清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%B4%87%E5%B7%A6%E7%BB%BC%E5%90%88.png" group-title="广西",崇左综合
+http://192.168.50.250:8080/3221226351/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="gx-hz" tvg-chno="226" tvg-name="贺州综合 标清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E8%B4%BA%E5%B7%9E%E7%BB%BC%E5%90%88.png" group-title="广西",贺州综合
+http://192.168.50.250:8080/3221226352/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="gx-hc" tvg-chno="227" tvg-name="河池新闻综合 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E6%B2%B3%E6%B1%A0%E6%96%B0%E9%97%BB%E7%BB%BC%E5%90%88.png" group-title="广西",河池新闻综合
+http://192.168.50.250:8080/3221226356/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="gx-qz" tvg-chno="228" tvg-name="钦州新闻综合 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E9%92%A6%E5%B7%9E%E6%96%B0%E9%97%BB%E7%BB%BC%E5%90%88.png" group-title="广西",钦州新闻综合
+http://192.168.50.250:8080/3221226347/index.m3u8?servicetype=1
+
+#EXTINF:-1 tvg-id="41" tvg-chno="100" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E4%B8%9C%E5%8D%97%E5%8D%AB%E8%A7%86.png" group-title="卫视",东南卫视
+http://192.168.50.250:8080/3221225904/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="31" tvg-chno="101" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E4%B8%9C%E6%96%B9%E5%8D%AB%E8%A7%86.png" group-title="卫视",东方卫视
+http://192.168.50.250:8080/3221225942/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="58" tvg-chno="102" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E4%BA%91%E5%8D%97%E5%8D%AB%E8%A7%86.png" group-title="卫视",云南卫视
+http://192.168.50.250:8080/3221225794/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="30" tvg-chno="103" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%8C%97%E4%BA%AC%E5%8D%AB%E8%A7%86.png" group-title="卫视",北京卫视
+http://192.168.50.250:8080/3221225889/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="51" tvg-chno="104" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%90%89%E6%9E%97%E5%8D%AB%E8%A7%86.png" group-title="卫视",吉林卫视
+http://192.168.50.250:8080/3221225678/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="56" tvg-chno="105" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%9B%9B%E5%B7%9D%E5%8D%AB%E8%A7%86.png" group-title="卫视",四川卫视
+http://192.168.50.250:8080/3221225757/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="39" tvg-chno="106" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%A4%A9%E6%B4%A5%E5%8D%AB%E8%A7%86.png" group-title="卫视",天津卫视
+http://192.168.50.250:8080/3221226022/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="32" tvg-chno="107" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%AE%89%E5%BE%BD%E5%8D%AB%E8%A7%86.png" group-title="卫视",安徽卫视
+http://192.168.50.250:8080/3221225886/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="38" tvg-chno="108" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%B1%B1%E4%B8%9C%E5%8D%AB%E8%A7%86.png" group-title="卫视",山东卫视
+http://192.168.50.250:8080/3221226010/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="33" tvg-chno="109" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%B9%BF%E4%B8%9C%E5%8D%AB%E8%A7%86.png" group-title="卫视",广东卫视
+http://192.168.50.250:8080/3221225913/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="29" tvg-chno="110" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E6%B1%9F%E8%8B%8F%E5%8D%AB%E8%A7%86.png" group-title="卫视",江苏卫视
+http://192.168.50.250:8080/3221226025/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="50" tvg-chno="111" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E6%B1%9F%E8%A5%BF%E5%8D%AB%E8%A7%86.png" group-title="卫视",江西卫视
+http://192.168.50.250:8080/3221225957/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="45" tvg-chno="112" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E6%B2%B3%E5%8C%97%E5%8D%AB%E8%A7%86.png" group-title="卫视",河北卫视
+http://192.168.50.250:8080/3221225773/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="47" tvg-chno="113" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E6%B2%B3%E5%8D%97%E5%8D%AB%E8%A7%86.png" group-title="卫视",河南卫视
+http://192.168.50.250:8080/3221225806/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="28" tvg-chno="114" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E6%B5%99%E6%B1%9F%E5%8D%AB%E8%A7%86.png" group-title="卫视",浙江卫视
+http://192.168.50.250:8080/3221225928/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="37" tvg-chno="115" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E6%B5%B7%E5%8D%97%E5%8D%AB%E8%A7%86.png" group-title="卫视",海南卫视
+http://192.168.50.250:8080/3221225752/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="34" tvg-chno="116" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E6%B7%B1%E5%9C%B3%E5%8D%AB%E8%A7%86.png" group-title="卫视",深圳卫视
+http://192.168.50.250:8080/3221225951/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="48" tvg-chno="117" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E6%B9%96%E5%8C%97%E5%8D%AB%E8%A7%86.png" group-title="卫视",湖北卫视
+http://192.168.50.250:8080/3221225954/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="27" tvg-chno="118" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E6%B9%96%E5%8D%97%E5%8D%AB%E8%A7%86.png" group-title="卫视",湖南卫视
+http://192.168.50.250:8080/3221225919/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="44" tvg-chno="119" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E8%B4%B5%E5%B7%9E%E5%8D%AB%E8%A7%86.png" group-title="卫视",贵州卫视
+http://192.168.50.250:8080/3221225770/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="36" tvg-chno="120" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E8%BE%BD%E5%AE%81%E5%8D%AB%E8%A7%86.png" group-title="卫视",辽宁卫视
+http://192.168.50.250:8080/3221226007/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="40" tvg-chno="121" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E9%87%8D%E5%BA%86%E5%8D%AB%E8%A7%86.png" group-title="卫视",重庆卫视
+http://192.168.50.250:8080/3221225898/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="46" tvg-chno="122" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E9%BB%91%E9%BE%99%E6%B1%9F%E5%8D%AB%E8%A7%86.png" group-title="卫视",黑龙江卫视
+http://192.168.50.250:8080/3221226019/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="42" tvg-chno="123" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E7%94%98%E8%82%83%E5%8D%AB%E8%A7%86.png" group-title="卫视",甘肃卫视
+http://192.168.50.250:8080/3221225764/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="59" tvg-chno="124" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E9%9D%92%E6%B5%B7%E5%8D%AB%E8%A7%86.png" group-title="卫视",青海卫视
+http://192.168.50.250:8080/3221225705/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="72" tvg-chno="125" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E4%B8%89%E6%B2%99%E5%8D%AB%E8%A7%86.png" group-title="卫视",三沙卫视
+http://192.168.50.250:8080/3221226405/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="67" tvg-chno="126" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%8D%A1%E9%85%B7%E5%8A%A8%E7%94%BB.png" group-title="卫视",卡酷动画
+http://192.168.50.250:8080/3221225730/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="62" tvg-chno="127" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%93%88%E5%93%88%E7%82%AB%E5%8A%A8.png" group-title="卫视",哈哈炫动
+http://192.168.50.250:8080/3221226428/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="69" tvg-chno="128" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E9%87%91%E9%B9%B0%E5%8D%A1%E9%80%9A.png" group-title="卫视",金鹰卡通
+http://192.168.50.250:8080/3221225702/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="1324" tvg-chno="129" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E9%87%91%E9%B9%B0%E7%BA%AA%E5%AE%9E.png" group-title="卫视",金鹰纪实
+http://192.168.50.250:8080/3221225699/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="68" tvg-chno="130" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%8E%A6%E9%97%A8%E5%8D%AB%E8%A7%86.png" group-title="卫视",厦门卫视
+http://192.168.50.250:8080/3221226412/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="dwq" tvg-chno="131" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%A4%A7%E6%B9%BE%E5%8C%BA%E5%8D%AB%E8%A7%86.png" group-title="卫视",大湾区卫视
+http://192.168.50.250:8080/3221225748/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="71" tvg-chno="132" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E8%A5%BF%E8%97%8F%E5%8D%AB%E8%A7%86.png" group-title="卫视",西藏卫视
+http://192.168.50.250:8080/3221225800/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="70" tvg-chno="133" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%BA%B7%E5%B7%B4%E5%8D%AB%E8%A7%86.png" group-title="卫视",康巴卫视
+http://192.168.50.250:8080/3221226270/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="anduo" tvg-chno="134" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%AE%89%E5%A4%9A%E5%8D%AB%E8%A7%86.png" group-title="卫视",安多卫视
+http://192.168.50.250:8080/3221226271/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="63" tvg-chno="135" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%BB%B6%E8%BE%B9%E5%8D%AB%E8%A7%86.png" group-title="卫视",延边卫视
+http://192.168.50.250:8080/3221226273/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="sdjy" tvg-chno="136" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%B1%B1%E4%B8%9C%E6%95%99%E8%82%B2%E5%8D%AB%E8%A7%86.png" group-title="卫视",山东教育卫视
+http://192.168.50.250:8080/3221226415/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="1759" tvg-chno="137" tvg-name="珠江卫视 标清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E7%8F%A0%E6%B1%9F%E5%8D%AB%E8%A7%86.png" group-title="卫视",珠江卫视
+http://192.168.50.250:8080/3221225717/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="54" tvg-chno="138" tvg-name="山西卫视 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%B1%B1%E8%A5%BF%E5%8D%AB%E8%A7%86.png" group-title="卫视",山西卫视
+http://192.168.50.250:8080/3221225785/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="55" tvg-chno="139" tvg-name="陕西卫视 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E9%99%95%E8%A5%BF%E5%8D%AB%E8%A7%86.png" group-title="卫视",陕西卫视
+http://192.168.50.250:8080/3221225754/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="53" tvg-chno="140" tvg-name="宁夏卫视 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%AE%81%E5%A4%8F%E5%8D%AB%E8%A7%86.png" group-title="卫视",宁夏卫视
+http://192.168.50.250:8080/3221225782/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="52" tvg-chno="141" tvg-name="内蒙古卫视 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%86%85%E8%92%99%E5%8F%A4%E5%8D%AB%E8%A7%86.png" group-title="卫视",内蒙古卫视
+http://192.168.50.250:8080/3221225751/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="57" tvg-chno="142" tvg-name="新疆卫视 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E6%96%B0%E7%96%86%E5%8D%AB%E8%A7%86.png" group-title="卫视",新疆卫视
+http://192.168.50.250:8080/3221225788/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="1173" tvg-chno="143" tvg-name="北京纪实 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%8C%97%E4%BA%AC%E7%BA%AA%E5%AE%9E.png" group-title="卫视",北京纪实
+http://192.168.50.250:8080/3221225995/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="1434" tvg-chno="144" tvg-name="嘉佳卡通 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%98%89%E4%BD%B3%E5%8D%A1%E9%80%9A.png" group-title="卫视",嘉佳卡通
+http://192.168.50.250:8080/3221225797/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="348" tvg-chno="145" tvg-name="优漫卡通 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E4%BC%98%E6%BC%AB%E5%8D%A1%E9%80%9A.png" group-title="卫视",优漫卡通
+http://192.168.50.250:8080/3221225791/index.m3u8?servicetype=1
+
+#EXTINF:-1 tvg-id="141" tvg-chno="400" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%87%A4%E5%87%B0%E5%8D%AB%E8%A7%86%E4%B8%AD%E6%96%87%E5%8F%B0.png" group-title="国际",凤凰卫视中文台
+http://192.168.50.250:8080/3221226331/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="142" tvg-chno="401" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%87%A4%E5%87%B0%E5%8D%AB%E8%A7%86%E8%B5%84%E8%AE%AF%E5%8F%B0.png" group-title="国际",凤凰卫视资讯台
+http://192.168.50.250:8080/3221226324/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="phoenix-hk" tvg-chno="402" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%87%A4%E5%87%B0%E5%8D%AB%E8%A7%86%E9%A6%99%E6%B8%AF%E5%8F%B0.png" group-title="国际",凤凰卫视香港台
+http://192.168.50.250:8080/3221226321/index.m3u8?servicetype=1
+
+#EXTINF:-1 tvg-id="migu-4k" tvg-chno="500" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%92%AA%E5%92%954K.png" group-title="4K频道",咪咕4K
+http://192.168.50.250:8080/3221225863/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="106" tvg-chno="501" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/CCTV4K.png" group-title="4K频道",CCTV4K
+http://192.168.50.250:8080/3221226689/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="45" tvg-chno="502" tvg-name="河北4K" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E6%B2%B3%E5%8C%974K.png" group-title="4K频道",河北4K
+https://event.pull.hebtv.com:443/live/live101.m3u8
+
+#EXTINF:-1 tvg-id="hot-pet" tvg-chno="300" tvg-name="精品萌宠 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E7%B2%BE%E5%93%81%E8%90%8C%E5%AE%A0.png" group-title="精彩热播",精品萌宠
+http://192.168.50.250:8080/3221225979/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="hot-heimei-movie" tvg-chno="301" tvg-name="黑莓电影 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E9%BB%91%E8%8E%93%E7%94%B5%E5%BD%B1.png" group-title="精彩热播",黑莓电影
+http://192.168.50.250:8080/3221225740/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="hot-heimei-anime" tvg-chno="302" tvg-name="黑莓动画 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E9%BB%91%E8%8E%93%E5%8A%A8%E7%94%BB.png" group-title="精彩热播",黑莓动画
+http://192.168.50.250:8080/3221225710/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="hot-dabo-sports" tvg-chno="303" tvg-name="哒啵赛事 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%93%92%E5%95%B5%E8%B5%9B%E4%BA%8B.png" group-title="精彩热播",哒啵赛事
+http://192.168.50.250:8080/3221225760/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="hot-dabo-esports" tvg-chno="304" tvg-name="哒啵电竞 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%93%92%E5%95%B5%E7%94%B5%E7%AB%9E.png" group-title="精彩热播",哒啵电竞
+http://192.168.50.250:8080/3221225880/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="hot-jingcai-sports" tvg-chno="305" tvg-name="睛彩竞技 超清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E7%9D%9B%E5%BD%A9%E7%AB%9E%E6%8A%80.png" group-title="精彩热播",睛彩竞技
+http://192.168.50.250:8080/3221225972/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="hot-jingcai-basketball" tvg-chno="306" tvg-name="睛彩篮球 超清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E7%9D%9B%E5%BD%A9%E7%AF%AE%E7%90%83.png" group-title="精彩热播",睛彩篮球
+http://192.168.50.250:8080/3221225961/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="hot-jingcai-kids" tvg-chno="307" tvg-name="睛彩青少 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E7%9D%9B%E5%BD%A9%E9%9D%92%E5%B0%91.png" group-title="精彩热播",睛彩青少
+http://192.168.50.250:8080/3221226055/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="hot-jingcai-dance" tvg-chno="308" tvg-name="睛彩广场舞 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E7%9D%9B%E5%BD%A9%E5%B9%BF%E5%9C%BA%E8%88%9E.png" group-title="精彩热播",睛彩广场舞
+http://192.168.50.250:8080/3221226326/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="hot-action" tvg-chno="309" tvg-name="动作电影 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%8A%A8%E4%BD%9C%E7%94%B5%E5%BD%B1.png" group-title="精彩热播",动作电影
+http://192.168.50.250:8080/3221225703/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="hot-featured" tvg-chno="310" tvg-name="热播精选 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E7%83%AD%E6%92%AD%E7%B2%BE%E9%80%89.png" group-title="精彩热播",热播精选
+http://192.168.50.250:8080/3221225763/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="hot-romance" tvg-chno="311" tvg-name="爱情喜剧 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E7%88%B1%E6%83%85%E5%96%9C%E5%89%A7.png" group-title="精彩热播",爱情喜剧
+http://192.168.50.250:8080/3221225698/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="hot-drama" tvg-chno="312" tvg-name="精品大剧 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E7%B2%BE%E5%93%81%E5%A4%A7%E5%89%A7.png" group-title="精彩热播",精品大剧
+http://192.168.50.250:8080/3221225737/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="hot-kungfu" tvg-chno="313" tvg-name="中国功夫 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E4%B8%AD%E5%9B%BD%E5%8A%9F%E5%A4%AB.png" group-title="精彩热播",中国功夫
+http://192.168.50.250:8080/3221225690/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="hot-military" tvg-chno="314" tvg-name="军事评论 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%86%9B%E4%BA%8B%E8%AF%84%E8%AE%BA.png" group-title="精彩热播",军事评论
+http://192.168.50.250:8080/3221225749/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="hot-agri" tvg-chno="315" tvg-name="农业致富 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%86%9C%E4%B8%9A%E8%87%B4%E5%AF%8C.png" group-title="精彩热播",农业致富
+http://192.168.50.250:8080/3221225687/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="hot-health" tvg-chno="316" tvg-name="怡伴健康 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E6%80%A1%E4%BC%B4%E5%81%A5%E5%BA%B7.png" group-title="精彩热播",怡伴健康
+http://192.168.50.250:8080/3221225684/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="hot-sports" tvg-chno="317" tvg-name="精品体育 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E7%B2%BE%E5%93%81%E4%BD%93%E8%82%B2.png" group-title="精彩热播",精品体育
+http://192.168.50.250:8080/3221225724/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="hot-dance" tvg-chno="318" tvg-name="炫舞未来 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E7%82%AB%E8%88%9E%E6%9C%AA%E6%9D%A5.png" group-title="精彩热播",炫舞未来
+http://192.168.50.250:8080/3221225973/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="hot-ronaldo" tvg-chno="319" tvg-name="绝对巨星C罗 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E7%BB%9D%E5%AF%B9%E5%B7%A8%E6%98%9FC%E7%BD%97.png" group-title="精彩热播",绝对巨星C罗
+http://192.168.50.250:8080/3221226698/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="hot-messi" tvg-chno="320" tvg-name="绝对巨星梅西 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E7%BB%9D%E5%AF%B9%E5%B7%A8%E6%98%9F%E6%A2%85%E8%A5%BF.png" group-title="精彩热播",绝对巨星梅西
+http://192.168.50.250:8080/3221226691/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="hot-worldcup" tvg-chno="321" tvg-name="世界杯经典回顾 高清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E4%B8%96%E7%95%8C%E6%9D%AF%E7%BB%8F%E5%85%B8%E5%9B%9E%E9%A1%BE.png" group-title="精彩热播",世界杯经典回顾
+http://192.168.50.250:8080/3221226701/index.m3u8?servicetype=1
+
+#EXTINF:-1 tvg-id="1864" tvg-chno="600" tvg-name="CCTV-16 4K 超清" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/CCTV16.png" group-title="全国热播",CCTV-16 4K
+http://192.168.50.250:8080/3221226690/index.m3u8?servicetype=1
+
+#EXTINF:-1 tvg-id="30" tvg-chno="900" tvg-name="北京卫视4K 4K" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%8C%97%E4%BA%AC%E5%8D%AB%E8%A7%864K.png" group-title="本地及特色",北京卫视4K
+http://192.168.50.250:8080/3221226333/index.m3u8?servicetype=1
+#EXTINF:-1 tvg-id="33" tvg-chno="901" tvg-name="广东卫视4K 4K" tvg-logo="https://raw.githubusercontent.com/hellomrli/my-IPTV/main/icon/%E5%B9%BF%E4%B8%9C%E5%8D%AB%E8%A7%864K.png" group-title="本地及特色",广东卫视4K
+http://192.168.50.250:8080/3221226707/index.m3u8?servicetype=1

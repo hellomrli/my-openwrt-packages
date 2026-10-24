@@ -1,0 +1,10 @@
+{
+  "luci-app-iptv-catchup": {
+    "description": "Configure IPTV catchup and inspect its service status",
+    "read": {
+      "uci": ["iptv-catchup"],
+      "ubus": {"service": ["list"], "network.interface.lan": ["status"]}
+    },
+    "write": {"uci": ["iptv-catchup"]}
+  }
+}

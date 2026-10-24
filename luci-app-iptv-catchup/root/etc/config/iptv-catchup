@@ -1,0 +1,7 @@
+config service 'main'
+	option enabled '0'
+	option port '8088'
+	option listen_address ''
+	option gateway 'http://127.0.0.1:8080'
+	option base_url ''
+	option format 'ku9'

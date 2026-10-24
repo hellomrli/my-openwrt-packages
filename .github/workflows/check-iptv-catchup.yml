@@ -1,0 +1,79 @@
+name: Check and build IPTV catchup
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'luci-app-iptv-catchup/**'
+      - '.github/workflows/check-iptv-catchup.yml'
+  pull_request:
+    paths:
+      - 'luci-app-iptv-catchup/**'
+      - '.github/workflows/check-iptv-catchup.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iptv-catchup-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-and-build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Offline regression and syntax checks
+        run: |
+          python3 luci-app-iptv-catchup/tests/check.py
+          node --check luci-app-iptv-catchup/root/www/luci-static/resources/view/iptv-catchup.js
+          sh -n luci-app-iptv-catchup/root/etc/init.d/iptv-catchup
+          python3 - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          root = Path('luci-app-iptv-catchup')
+          for path in root.rglob('*.json'):
+              json.loads(path.read_text(encoding='utf-8'))
+          manifest = json.loads((root / 'SOURCE.json').read_text())
+          for relative, expected in manifest['sha256'].items():
+              assert hashlib.sha256((root / relative).read_bytes()).hexdigest() == expected, relative
+          PY
+          git diff --check
+
+      - name: Install native package build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y meson ninja-build pkg-config libssl-dev zlib1g-dev libzstd-dev fakeroot
+
+      - name: Build pinned apk-tools 3.0.5
+        run: |
+          git init /tmp/apk-tools
+          git -C /tmp/apk-tools remote add origin https://gitlab.alpinelinux.org/alpine/apk-tools.git
+          git -C /tmp/apk-tools fetch --depth 1 origin b5a31c0d865342ad80be10d68f1bb3d3ad9b0866
+          git -C /tmp/apk-tools checkout --detach FETCH_HEAD
+          test "$(git -C /tmp/apk-tools rev-parse HEAD)" = b5a31c0d865342ad80be10d68f1bb3d3ad9b0866
+          meson setup /tmp/apk-tools/build /tmp/apk-tools \
+            -Ddocs=disabled -Dhelp=disabled -Dlua=disabled -Dpython=disabled \
+            -Dtests=disabled -Durl_backend=wget --buildtype=release
+          ninja -C /tmp/apk-tools/build
+
+      - name: Build noarch APK
+        env:
+          SOURCE_DATE_EPOCH: '1792800000'
+        run: |
+          fakeroot python3 luci-app-iptv-catchup/tools/build_apk.py \
+            --apk /tmp/apk-tools/build/src/apk --output dist
+          (cd dist && sha256sum -c SHA256SUMS)
+
+      - name: Upload installable package
+        uses: actions/upload-artifact@v4
+        with:
+          name: luci-app-iptv-catchup-apk
+          path: |
+            dist/*.apk
+            dist/SHA256SUMS
+          if-no-files-found: error
