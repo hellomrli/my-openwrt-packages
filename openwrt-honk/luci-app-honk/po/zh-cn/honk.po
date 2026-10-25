@@ -1253,3 +1253,63 @@ msgstr "粘贴 Clash YAML、Surge INI、Base64 或分享链接。"
 
 msgid "Paste Clash YAML, Surge INI, Base64 or share links; they are parsed locally into nodes and written to /etc/honk/config.dae."
 msgstr "粘贴 Clash YAML、Surge INI、Base64 或分享链接，会在本地解析为节点并写入 /etc/honk/config.dae。"
+
+msgid "Open Clash panel"
+msgstr "打开 Clash 面板"
+
+msgid "Clash API"
+msgstr "Clash API"
+
+msgid "Off"
+msgstr "关闭"
+
+msgid "Zashboard is still downloading or unavailable."
+msgstr "Zashboard 仍在下载或暂不可用。"
+
+msgid "The Clash API listener is unavailable. Check the service logs."
+msgstr "Clash API 监听不可用，请检查服务日志。"
+
+msgid "Enable Clash API and Zashboard"
+msgstr "启用 Clash API 和 Zashboard"
+
+msgid "Clash API port"
+msgstr "Clash API 端口"
+
+msgid "Clash API secret"
+msgstr "Clash API 密钥"
+
+msgid "A secret is set. Leave blank to keep it."
+msgstr "已设置密钥，留空则保持原值。"
+
+msgid "Required when enabling. Use 6–128 letters, numbers, dots, underscores or hyphens."
+msgstr "启用时必填，使用 6～128 位英文字母、数字、点、下划线或短横线。"
+
+msgid "Use your existing HTTPS reverse proxy for external access. Enter the secret in Zashboard when connecting."
+msgstr "外网访问请使用现有 HTTPS 反向代理，并在 Zashboard 中填写密钥。"
+
+msgid "Choose a different Clash API port and enter a valid secret."
+msgstr "请选择不同的 Clash API 端口并填写有效密钥。"
+
+msgid "A secret is set. Leave blank to keep it. Use your existing HTTPS reverse proxy for external access."
+msgstr "已设置密钥，留空则保持原值；外网访问请使用现有 HTTPS 反向代理。"
+
+msgid "A secret is required when enabling Clash API. Use 6–128 letters, numbers, dots, underscores or hyphens."
+msgstr "启用 Clash API 时必须填写密钥，使用 6～128 位英文字母、数字、点、下划线或短横线。"
+
+msgid "The Clash API port is already in use."
+msgstr "Clash API 端口已被占用。"
+
+msgid "Enter a different Clash API port and a secret of 6–128 letters, numbers, dots, underscores or hyphens."
+msgstr "请设置不同的 Clash API 端口，以及 6～128 位英文字母、数字、点、下划线或短横线组成的密钥。"
+
+msgid "Clash API port must be between 1024 and 65535."
+msgstr "Clash API 端口需要在 1024～65535 之间。"
+
+msgid "The Clash API port must differ from the listen port."
+msgstr "Clash API 端口不能和监听端口相同。"
+
+msgid "A secret is required when enabling Clash API."
+msgstr "启用 Clash API 时需要设置密钥。"
+
+msgid "The secret must be 6-128 letters, numbers, dots, underscores or hyphens."
+msgstr "密钥需要 6～128 位，只能包含字母、数字、点、下划线或短横线。"

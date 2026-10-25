@@ -424,7 +424,7 @@ load_uci_values() {
 	uci_show=$(uci_run -q show honk 2>/dev/null) || return 1
 	printf '%s\n' "$uci_show" | awk -F= '
 		/^honk\.main=/ { main++ ; next }
-		/^honk\.main\.(enabled|boot_enabled|initialized|config_file|listen_port|lan_network|geoip_url|geosite_url|geo_auto|geo_auto_freq)=/ { next }
+		/^honk\.main\.(enabled|boot_enabled|initialized|config_file|listen_port|lan_network|geoip_url|geosite_url|geo_auto|geo_auto_freq|clash_api_enabled|clash_api_port|clash_api_secret)=/ { next }
 		/^honk\.main\./ { bad=1; next }
 		/^honk\.[A-Za-z0-9_.-]+=/ { bad=1; next }
 		END { exit (bad || main != 1) }
@@ -436,6 +436,9 @@ load_uci_values() {
 	u_config=$(get_uci config_file) || return 1
 	u_port=$(get_uci listen_port) || return 1
 	u_network=$(get_uci lan_network) || return 1
+	u_clash_enabled=$(get_uci clash_api_enabled 2>/dev/null || printf 0)
+	u_clash_port=$(get_uci clash_api_port 2>/dev/null || printf 9090)
+	u_clash_secret=$(get_uci clash_api_secret 2>/dev/null || true)
 	u_geo_auto=$(get_uci geo_auto 2>/dev/null || printf 0)
 	u_geo_auto_freq=$(get_uci geo_auto_freq 2>/dev/null || printf daily)
 	case "$u_enabled:$u_boot:$u_initialized" in 0:0:0|0:0:1|0:1:0|0:1:1|1:0:0|1:0:1|1:1:0|1:1:1) ;; *) return 1 ;; esac
@@ -444,6 +447,14 @@ load_uci_values() {
 	case "$u_port" in ''|*[!0-9]*) return 1 ;; esac
 	[ "$u_port" -ge 1024 ] && [ "$u_port" -le 65535 ] || return 1
 	case "$u_network" in ''|*[!A-Za-z0-9_.-]*) return 1 ;; esac
+	case "$u_clash_enabled" in 0|1) ;; *) return 1 ;; esac
+	case "$u_clash_port" in ''|*[!0-9]*) return 1 ;; esac
+	[ "$u_clash_port" -ge 1024 ] && [ "$u_clash_port" -le 65535 ] || return 1
+	if [ "$u_clash_enabled" = 1 ]; then
+		[ "$u_initialized" = 1 ] && [ "$u_clash_port" != "$u_port" ] || return 1
+		case "$u_clash_secret" in ''|*[!A-Za-z0-9._-]*) return 1 ;; esac
+		[ "${#u_clash_secret}" -ge 6 ] && [ "${#u_clash_secret}" -le 128 ] || return 1
+	fi
 }
 
 check_sqlite() {
@@ -577,6 +588,18 @@ experimental {
         config_write: true
         ui: '/usr/share/doona'
     }
+EOF
+	if [ "$u_clash_enabled" = 1 ]; then
+		cat >> "$temp_dir/system.expected" <<EOF
+    clash_api {
+        external_controller: '$listen_host:$u_clash_port'
+        external_ui: '/usr/share/honk/zashboard'
+        secret: '$u_clash_secret'
+        default_mode: Rule
+    }
+EOF
+	fi
+	cat >> "$temp_dir/system.expected" <<EOF
 }
 EOF
 	cmp -s "$trusted_system" "$temp_dir/system.expected"
@@ -744,6 +767,18 @@ experimental {
         config_write: true
         ui: '/usr/share/doona'
     }
+EOF
+	if [ "$u_clash_enabled" = 1 ]; then
+		cat >> "$live_system" <<EOF
+    clash_api {
+        external_controller: '$live_host:$u_clash_port'
+        external_ui: '/usr/share/honk/zashboard'
+        secret: '$u_clash_secret'
+        default_mode: Rule
+    }
+EOF
+	fi
+	cat >> "$live_system" <<EOF
 }
 EOF
 }
@@ -954,7 +989,7 @@ restore() {
 	[ "$old_running" != 1 ] || [ "$restore_initialized" = 1 ] || { error running_service_requires_initialized_restore; return 1; }
 	[ "$(sha_of "$RESTORE")" = "$archive_hash" ] || { error restore_archive_changed; return 1; }
 	write_live_system "$restore_stage/etc/honk/system.dae" "$candidate_device" "$candidate_ip" "$u_port" "$restore_initialized" || { error system_config_render_failed; return 1; }
-	chmod 0444 "$restore_stage/etc/honk/system.dae" || { error system_config_render_failed; return 1; }
+	chmod 0600 "$restore_stage/etc/honk/system.dae" || { error system_config_render_failed; return 1; }
 	uci -c "$uci_dir" -t "$temp_dir/uci-tmp" set "honk.main.enabled=$old_enabled" || { error restore_profile_stage_failed; return 1; }
 	uci -c "$uci_dir" -t "$temp_dir/uci-tmp" set "honk.main.boot_enabled=$old_boot" || { error restore_profile_stage_failed; return 1; }
 	uci -c "$uci_dir" -t "$temp_dir/uci-tmp" set "honk.main.initialized=$restore_initialized" || { error restore_profile_stage_failed; return 1; }
@@ -969,7 +1004,7 @@ restore() {
 	cp -pR "$restore_stage/etc/honk/." "$TXN_DIR/new-tree/" || { restore_abort restore_stage_failed; return 1; }
 	find "$TXN_DIR/new-tree" -type d -exec chmod 0700 {} \; 2>/dev/null
 	find "$TXN_DIR/new-tree" -type f -exec chmod 0600 {} \; 2>/dev/null
-	chmod 0444 "$TXN_DIR/new-tree/system.dae" || { restore_abort restore_stage_failed; return 1; }
+	chmod 0600 "$TXN_DIR/new-tree/system.dae" || { restore_abort restore_stage_failed; return 1; }
 	if [ "$old_running" = 1 ]; then
 		service_stopped=1
 		stop_managed || { restore_abort service_stop_failed; return 1; }
@@ -1035,6 +1070,9 @@ reset_data() {
 	uci -c "$reset_uci" -t "$temp_dir/uci-tmp" set honk.main.boot_enabled=0 || { error reset_profile_stage_failed; return 1; }
 	uci -c "$reset_uci" -t "$temp_dir/uci-tmp" set honk.main.listen_port=9527 || { error reset_profile_stage_failed; return 1; }
 	uci -c "$reset_uci" -t "$temp_dir/uci-tmp" set honk.main.lan_network=lan || { error reset_profile_stage_failed; return 1; }
+	uci -c "$reset_uci" -t "$temp_dir/uci-tmp" set honk.main.clash_api_enabled=0 || { error reset_profile_stage_failed; return 1; }
+	uci -c "$reset_uci" -t "$temp_dir/uci-tmp" set honk.main.clash_api_port=9090 || { error reset_profile_stage_failed; return 1; }
+	uci -c "$reset_uci" -t "$temp_dir/uci-tmp" set honk.main.clash_api_secret= || { error reset_profile_stage_failed; return 1; }
 	uci -c "$reset_uci" -t "$temp_dir/uci-tmp" commit honk || { error reset_profile_stage_failed; return 1; }
 	load_uci_values uci "$reset_uci" || { error reset_profile_stage_failed; return 1; }
 	. /lib/functions/network.sh || { error lan_network_unavailable; return 1; }
@@ -1043,7 +1081,7 @@ reset_data() {
 	network_get_device reset_device "$u_network" || { error lan_network_unavailable; return 1; }
 	network_get_ipaddr reset_ip "$u_network" || { error lan_network_unavailable; return 1; }
 	write_live_system "$reset_stage/etc/honk/system.dae" "$reset_device" "$reset_ip" "$u_port" "$u_initialized" || { error system_config_render_failed; return 1; }
-	chmod 0444 "$reset_stage/etc/honk/system.dae" || { error system_config_render_failed; return 1; }
+	chmod 0600 "$reset_stage/etc/honk/system.dae" || { error system_config_render_failed; return 1; }
 	reset_candidate=$temp_dir/reset-candidate
 	mkdir -p "$reset_candidate/etc" || { error reset_stage_failed; return 1; }
 	cp -pR "$reset_stage/etc/honk" "$reset_candidate/etc/honk" || { error reset_stage_failed; return 1; }
@@ -1072,7 +1110,7 @@ reset_data() {
 	cp -pR "$reset_candidate/etc/honk/." "$TXN_DIR/new-tree/" || { restore_abort reset_stage_failed; return 1; }
 	find "$TXN_DIR/new-tree" -type d -exec chmod 0700 {} \; 2>/dev/null
 	find "$TXN_DIR/new-tree" -type f -exec chmod 0600 {} \; 2>/dev/null
-	chmod 0444 "$TXN_DIR/new-tree/system.dae" || { restore_abort reset_stage_failed; return 1; }
+	chmod 0600 "$TXN_DIR/new-tree/system.dae" || { restore_abort reset_stage_failed; return 1; }
 	foreign_core_running && { restore_abort unmanaged_core_running; return 1; }
 	old_tree_path=$TXN_DIR/old-tree
 	new_tree_path=$TXN_DIR/new-tree
@@ -1106,7 +1144,7 @@ stage_reset_tree() {
 	cp "$stage_default" "$stage_target/config.dae" || return 1
 	cp "$stage_system" "$stage_target/system.dae" || return 1
 	chmod 0600 "$stage_target/config.dae" || return 1
-	chmod 0444 "$stage_target/system.dae" || return 1
+	chmod 0600 "$stage_target/system.dae" || return 1
 	chmod 0700 "$stage_target/state" || return 1
 	if [ -e "$stage_source/state/honk.db" ] || [ -L "$stage_source/state/honk.db" ]; then
 		[ -f "$stage_source/state/honk.db" ] && [ ! -L "$stage_source/state/honk.db" ] || return 1

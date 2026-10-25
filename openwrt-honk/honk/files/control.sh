@@ -24,7 +24,19 @@ load_settings() {
 	config_get_bool initialized main initialized 0
 	config_get config_file main config_file /etc/honk/config.dae
 	config_get listen_port main listen_port 9527
+	config_get_bool clash_api_enabled main clash_api_enabled 0
+	config_get clash_api_port main clash_api_port 9090
+	config_get clash_api_secret main clash_api_secret ''
 	config_get lan_network main lan_network lan
+}
+
+valid_clash_api() {
+	[ "$clash_api_enabled" = 1 ] || return 0
+	case "$clash_api_port" in ''|*[!0-9]*) return 1 ;; esac
+	[ "$clash_api_port" -ge 1024 ] && [ "$clash_api_port" -le 65535 ] || return 1
+	[ "$clash_api_port" != "$listen_port" ] || return 1
+	case "$clash_api_secret" in ''|*[!A-Za-z0-9._-]*) return 1 ;; esac
+	[ "${#clash_api_secret}" -ge 6 ] && [ "${#clash_api_secret}" -le 128 ]
 }
 
 valid_network_name() {
@@ -49,7 +61,8 @@ module_available() {
 
 system_config_readonly() {
 	permissions=$(ls -ldn /etc/honk/system.dae 2>/dev/null | awk '{print $1}')
-	[ "$permissions" = '-r--r--r--' ]
+	[ "$permissions" = '-rw-------' ] && return 0
+	[ "$permissions" = '-r--r--r--' ] && ! grep -q 'clash_api {' /etc/honk/system.dae
 }
 
 no_honk_resources() {
@@ -61,10 +74,11 @@ no_honk_resources() {
 }
 
 check_port() {
+	checked_port=${1:-$listen_port}
 	if command -v netstat >/dev/null 2>&1; then
-		netstat -lnt 2>/dev/null | awk '{print $4}' | grep -Eq "(^|:)${listen_port}$" && { fail "listen port is occupied"; return 1; }
+		netstat -lnt 2>/dev/null | awk '{print $4}' | grep -Eq "(^|:)${checked_port}$" && { fail "listen port is occupied"; return 1; }
 	elif command -v ss >/dev/null 2>&1; then
-		ss -lnt 2>/dev/null | awk '{print $4}' | grep -Eq "(^|:)${listen_port}$" && { fail "listen port is occupied"; return 1; }
+		ss -lnt 2>/dev/null | awk '{print $4}' | grep -Eq "(^|:)${checked_port}$" && { fail "listen port is occupied"; return 1; }
 	else
 		fail "netstat or ss is required for listener conflict checks"
 		return 1
@@ -82,12 +96,13 @@ check_config() {
 	[ "$config_file" = /etc/honk/config.dae ] || { fail "config_file must be /etc/honk/config.dae"; return 1; }
 	[ -f /etc/honk/config.dae ] && [ ! -L /etc/honk/config.dae ] || { fail "main config must be a regular file"; return 1; }
 	[ -f /etc/honk/system.dae ] && [ ! -L /etc/honk/system.dae ] || { fail "system config must be a regular file"; return 1; }
-	system_config_readonly || { fail "system config must be read-only (0444)"; return 1; }
+	system_config_readonly || { fail "system config must be private (0600)"; return 1; }
 	[ -r /usr/share/doona/index.html ] || { fail "Doona UI index.html unavailable"; return 1; }
 	case "$listen_port" in
 		''|*[!0-9]*) fail "listen_port must be numeric"; return 1 ;;
 	esac
 	[ "$listen_port" -ge 1024 ] && [ "$listen_port" -le 65535 ] || { fail "listen_port must be 1024-65535"; return 1; }
+	valid_clash_api || { fail "invalid Clash API settings"; return 1; }
 }
 
 check_kernel() {
@@ -164,7 +179,8 @@ consume_maintenance_capability() {
 		candidate_health_start:restore:new_installed|candidate_health_start:import_apply:new_installed|rollback_old_start:restore:rollback_old_start|rollback_old_start:reset:rollback_old_start|rollback_old_start:import_apply:rollback_old_start) ;;
 		*) return 1 ;;
 	esac
-	[ "$(cat "$HONK_LOCK_DIR/pid" 2>/dev/null)" = "$cap_pid" ] || return 1
+	read -r lock_pid lock_starttime < "$HONK_LOCK_DIR/pid" || return 1
+	[ "$lock_pid:$lock_starttime" = "$cap_pid:$cap_starttime" ] || return 1
 	[ "$(proc_starttime "$cap_pid")" = "$cap_starttime" ] || return 1
 	return 0
 }
@@ -194,7 +210,9 @@ lock_owner_invalid() {
 preflight() {
 	load_settings
 	[ "$enabled" = 1 ] && [ "$initialized" = 1 ] || { fail "package must be explicitly enabled and initialized"; return 1; }
-	maintenance_start_guard && check_config && check_network && check_kernel && no_honk_resources && check_conflicts && check_port
+	maintenance_start_guard && check_config && check_network && check_kernel && no_honk_resources && check_conflicts && check_port && {
+		[ "$clash_api_enabled" = 0 ] || check_port "$clash_api_port"
+	}
 }
 
 prepare_runtime() {
@@ -256,7 +274,7 @@ ensure_loopback_system() {
 	[ "$current_listen" = "127.0.0.1:$listen_port" ] && return 0
 	temp_system=$(mktemp /etc/honk/.system.dae.XXXXXX) || return 1
 	sed "s/^[[:space:]]*listen:[[:space:]]*'[^']*'.*/        listen: '127.0.0.1:$listen_port'/" /etc/honk/system.dae > "$temp_system" || { rm -f "$temp_system"; return 1; }
-	chmod 0444 "$temp_system" || { rm -f "$temp_system"; return 1; }
+	chmod 0600 "$temp_system" || { rm -f "$temp_system"; return 1; }
 	current_hash=$(sha256sum /etc/honk/system.dae 2>/dev/null | awk '{print $1}')
 	[ "$current_hash" = "$system_written_hash" ] || { rm -f "$temp_system"; fail "system config changed concurrently; refusing initialization"; return 1; }
 	mv -f "$temp_system" /etc/honk/system.dae || { rm -f "$temp_system"; return 1; }
@@ -298,6 +316,7 @@ write_runtime_system() {
 	lan_ip=$2
 	system_port=${3:-$listen_port}
 	system_listen=${4:-$lan_ip}
+	valid_clash_api || { fail "invalid Clash API settings"; return 1; }
 	current_hash=$(sha256sum /etc/honk/system.dae 2>/dev/null | awk '{print $1}')
 	[ "$current_hash" = "$system_written_hash" ] || { fail "system config changed concurrently; refusing runtime config write"; return 1; }
 	temp_system=$(mktemp /etc/honk/.system.dae.XXXXXX) || return 1
@@ -308,9 +327,13 @@ write_runtime_system() {
 		printf "    store_subscribe: true\n    nfqueue_enable: true\n}\n\n"
 		printf "experimental {\n    native_api {\n        enabled: true\n        listen: '%s:%s'\n" "$system_listen" "$system_port"
 		printf "        password_auth: true\n        allow_anonymous_loopback: false\n"
-		printf "        config_write: true\n        ui: '/usr/share/doona'\n    }\n}\n"
+		printf "        config_write: true\n        ui: '/usr/share/doona'\n    }\n"
+		if [ "$clash_api_enabled" = 1 ]; then
+			printf "    clash_api {\n        external_controller: '%s:%s'\n        external_ui: '/usr/share/honk/zashboard'\n        secret: '%s'\n        default_mode: Rule\n    }\n" "$system_listen" "$clash_api_port" "$clash_api_secret"
+		fi
+		printf "}\n"
 	} > "$temp_system" || { rm -f "$temp_system"; return 1; }
-	chmod 0444 "$temp_system" || { rm -f "$temp_system"; return 1; }
+	chmod 0600 "$temp_system" || { rm -f "$temp_system"; return 1; }
 	current_hash=$(sha256sum /etc/honk/system.dae 2>/dev/null | awk '{print $1}')
 	[ "$current_hash" = "$system_written_hash" ] || { rm -f "$temp_system"; fail "system config changed concurrently; refusing runtime config write"; return 1; }
 	mv -f "$temp_system" /etc/honk/system.dae || { rm -f "$temp_system"; return 1; }
@@ -323,6 +346,10 @@ managed_core_pid() {
 
 configured_system_port() {
 	sed -n "s/^[[:space:]]*listen:[[:space:]]*'[^:]*:\([0-9][0-9]*\)'.*/\1/p" /etc/honk/system.dae 2>/dev/null | head -n 1
+}
+
+configured_clash_port() {
+	sed -n "s/^[[:space:]]*external_controller:[[:space:]]*'[^:]*:\([0-9][0-9]*\)'.*/\1/p" /etc/honk/system.dae 2>/dev/null | head -n 1
 }
 
 sync_boot_link() {
@@ -369,22 +396,41 @@ settings() {
 	json_get_type port_type listen_port
 	json_get_var new_boot_enabled boot_enabled
 	json_get_type boot_enabled_type boot_enabled
+	json_get_var new_clash_enabled clash_api_enabled
+	json_get_type clash_enabled_type clash_api_enabled
+	json_get_var new_clash_port clash_api_port
+	json_get_type clash_port_type clash_api_port
+	json_get_var new_clash_secret clash_api_secret
+	json_get_type clash_secret_type clash_api_secret
 	[ "$network_type" = string ] || { echo '{"ok":false,"message":"invalid_lan_network"}'; return 1; }
 	case "$port_type" in int|integer) ;; *) echo '{"ok":false,"message":"invalid_listen_port"}'; return 1 ;; esac
 	[ "$boot_enabled_type" = boolean ] || { echo '{"ok":false,"message":"invalid_boolean_settings"}'; return 1; }
+	case "$clash_enabled_type" in ''|null|boolean) ;; *) echo '{"ok":false,"message":"invalid_clash_api_settings"}'; return 1 ;; esac
+	case "$clash_port_type" in ''|null|int|integer) ;; *) echo '{"ok":false,"message":"invalid_clash_api_settings"}'; return 1 ;; esac
+	case "$clash_secret_type" in ''|null|string) ;; *) echo '{"ok":false,"message":"invalid_clash_api_settings"}'; return 1 ;; esac
 	case "$new_network" in ''|*[!A-Za-z0-9_.-]*) echo '{"ok":false,"message":"invalid_lan_network"}'; return 1 ;; esac
 	case "$new_port" in ''|*[!0-9]*) echo '{"ok":false,"message":"invalid_listen_port"}'; return 1 ;; esac
 	[ "$new_port" -ge 1024 ] && [ "$new_port" -le 65535 ] || { echo '{"ok":false,"message":"invalid_listen_port"}'; return 1; }
 	load_settings
+	case "$clash_enabled_type" in ''|null) new_clash_enabled=$clash_api_enabled ;; esac
+	case "$clash_port_type" in ''|null) new_clash_port=$clash_api_port ;; esac
+	[ -n "$new_clash_secret" ] || new_clash_secret=$clash_api_secret
 	new_enabled=$enabled
 	old_network=$lan_network
 	old_port=$listen_port
 	old_enabled=$enabled
 	old_boot_enabled=$boot_enabled
 	old_initialized=$initialized
+	old_clash_enabled=$clash_api_enabled
+	old_clash_port=$clash_api_port
+	old_clash_secret=$clash_api_secret
 	[ "$initialized" = 1 ] || { [ "$new_enabled" = 0 ] && [ "$new_boot_enabled" = 0 ] || { echo '{"ok":false,"message":"initialize_before_enabling_service"}'; return 1; }; }
 	lan_network=$new_network
 	listen_port=$new_port
+	clash_api_enabled=$new_clash_enabled
+	clash_api_port=$new_clash_port
+	clash_api_secret=$new_clash_secret
+	valid_clash_api || { echo '{"ok":false,"message":"invalid_clash_api_settings"}'; return 1; }
 	check_network || { echo '{"ok":false,"message":"lan_network_unavailable"}'; return 1; }
 	network_settings || { echo '{"ok":false,"message":"lan_ipv4_unavailable"}'; return 1; }
 	old_running=0
@@ -397,19 +443,28 @@ settings() {
 	if ! { [ "$old_running" = 1 ] && [ "$(configured_system_port)" = "$new_port" ]; }; then
 		check_port || { echo '{"ok":false,"message":"listen_port_occupied"}'; return 1; }
 	fi
+	if [ "$clash_api_enabled" = 1 ] && ! { [ "$old_running" = 1 ] && [ "$(configured_clash_port)" = "$new_clash_port" ]; }; then
+		check_port "$new_clash_port" || { echo '{"ok":false,"message":"clash_api_port_occupied"}'; return 1; }
+	fi
 	honk_lock_acquire || { echo '{"ok":false,"message":"operation_in_progress"}'; return 1; }
 	trap 'honk_lock_release >/dev/null 2>&1' 0
 	load_settings
-	[ "$lan_network" = "$old_network" ] && [ "$listen_port" = "$old_port" ] && [ "$enabled" = "$old_enabled" ] && [ "$boot_enabled" = "$old_boot_enabled" ] && [ "$initialized" = "$old_initialized" ] || { echo '{"ok":false,"message":"settings_changed_concurrently"}'; return 1; }
+	[ "$lan_network" = "$old_network" ] && [ "$listen_port" = "$old_port" ] && [ "$enabled" = "$old_enabled" ] && [ "$boot_enabled" = "$old_boot_enabled" ] && [ "$initialized" = "$old_initialized" ] && [ "$clash_api_enabled" = "$old_clash_enabled" ] && [ "$clash_api_port" = "$old_clash_port" ] && [ "$clash_api_secret" = "$old_clash_secret" ] || { echo '{"ok":false,"message":"settings_changed_concurrently"}'; return 1; }
 	new_enabled=$enabled
 	managed_core_pid >/dev/null 2>&1 && recheck_running=1 || recheck_running=0
 	[ "$recheck_running" = "$old_running" ] || { echo '{"ok":false,"message":"service_state_changed_concurrently"}'; return 1; }
 	old_running=$recheck_running
 	lan_network=$new_network
 	listen_port=$new_port
+	clash_api_enabled=$new_clash_enabled
+	clash_api_port=$new_clash_port
+	clash_api_secret=$new_clash_secret
 	check_network && network_settings || { echo '{"ok":false,"message":"lan_network_changed_during_settings"}'; return 1; }
 	if ! { [ "$old_running" = 1 ] && [ "$(configured_system_port)" = "$new_port" ]; }; then
 		check_port || { echo '{"ok":false,"message":"listen_port_occupied"}'; return 1; }
+	fi
+	if [ "$clash_api_enabled" = 1 ] && ! { [ "$old_running" = 1 ] && [ "$(configured_clash_port)" = "$new_clash_port" ]; }; then
+		check_port "$new_clash_port" || { echo '{"ok":false,"message":"clash_api_port_occupied"}'; return 1; }
 	fi
 	if [ "$initialized" = 1 ] && ! check_config; then echo '{"ok":false,"message":"package_config_unavailable"}'; return 1; fi
 	umask 077
@@ -436,7 +491,7 @@ settings() {
 		if [ "$rollback_status" = 0 ]; then rm -rf "$settings_dir"; echo '{"ok":false,"message":"system_config_write_failed_rolled_back"}'; else logger -t honk "settings rollback failed; snapshot retained at $settings_dir"; echo '{"ok":false,"message":"system_config_write_and_rollback_failed_snapshot_retained"}'; fi
 		return 1
 	fi
-	uci set "honk.main.lan_network=$new_network" && uci set "honk.main.listen_port=$new_port" && uci set "honk.main.enabled=$new_enabled" && uci set "honk.main.boot_enabled=$new_boot_enabled" && uci commit honk || {
+	uci set "honk.main.lan_network=$new_network" && uci set "honk.main.listen_port=$new_port" && uci set "honk.main.enabled=$new_enabled" && uci set "honk.main.boot_enabled=$new_boot_enabled" && uci set "honk.main.clash_api_enabled=$new_clash_enabled" && uci set "honk.main.clash_api_port=$new_clash_port" && uci set "honk.main.clash_api_secret=$new_clash_secret" && uci commit honk && chmod 0600 /etc/config/honk || {
 		settings_rollback; rollback_status=$?
 		if [ "$rollback_status" = 0 ]; then rm -rf "$settings_dir"; echo '{"ok":false,"message":"settings_commit_failed_rolled_back"}'; else logger -t honk "settings rollback failed; snapshot retained at $settings_dir"; echo '{"ok":false,"message":"settings_commit_and_rollback_failed_snapshot_retained"}'; fi
 		return 1
@@ -477,6 +532,9 @@ diagnose() {
 		no_honk_resources >/dev/null 2>&1 || errors="$errors honk_resources_occupied"
 		pidof honk-core >/dev/null 2>&1 && errors="$errors unmanaged_core_running"
 		check_port >/dev/null 2>&1 || errors="$errors listen_port_occupied"
+		if [ "$clash_api_enabled" = 1 ]; then
+			check_port "$clash_api_port" >/dev/null 2>&1 || errors="$errors clash_api_port_occupied"
+		fi
 	fi
 	check_conflicts >/dev/null 2>&1 || errors="$errors proxy_conflict"
 	if [ -d "$HONK_LOCK_DIR" ]; then
@@ -503,6 +561,19 @@ main_has_system_include() {
 	' /etc/honk/config.dae
 }
 
+clash_system_matches() {
+	if [ "$clash_api_enabled" = 0 ]; then
+		! grep -q 'clash_api {' /etc/honk/system.dae
+		return
+	fi
+	permissions=$(ls -ldn /etc/honk/system.dae 2>/dev/null | awk '{print $1}')
+	[ "$permissions" = '-rw-------' ] || return 1
+	grep -Fqx "        external_controller: '$system_host:$clash_api_port'" /etc/honk/system.dae || return 1
+	grep -Fqx "        external_ui: '/usr/share/honk/zashboard'" /etc/honk/system.dae || return 1
+	system_secret=$(sed -n "s/^        secret: '\([^']*\)'$/\1/p" /etc/honk/system.dae)
+	[ "$system_secret" = "$clash_api_secret" ]
+}
+
 repair() {
 	if [ -e /etc/.honk-update/journal ] || [ -L /etc/.honk-update/journal ]; then echo '{"ok":false,"message":"update_recovery_required"}'; return 1; fi
 	load_settings
@@ -511,6 +582,9 @@ repair() {
 	old_enabled=$enabled
 	old_boot_enabled=$boot_enabled
 	old_initialized=$initialized
+	old_clash_enabled=$clash_api_enabled
+	old_clash_port=$clash_api_port
+	old_clash_secret=$clash_api_secret
 	[ "$config_file" = /etc/honk/config.dae ] || { echo '{"ok":false,"message":"invalid_config_path"}'; return 1; }
 	[ -f /etc/honk/config.dae ] && [ ! -L /etc/honk/config.dae ] || { echo '{"ok":false,"message":"main_config_unavailable"}'; return 1; }
 	main_hash=$(sha256sum /etc/honk/config.dae | awk '{print $1}')
@@ -518,6 +592,7 @@ repair() {
 	valid_network_name || { echo '{"ok":false,"message":"invalid_lan_network"}'; return 1; }
 	case "$listen_port" in ''|*[!0-9]*) echo '{"ok":false,"message":"invalid_listen_port"}'; return 1 ;; esac
 	[ "$listen_port" -ge 1024 ] && [ "$listen_port" -le 65535 ] || { echo '{"ok":false,"message":"invalid_listen_port"}'; return 1; }
+	valid_clash_api || { echo '{"ok":false,"message":"invalid_clash_api_settings"}'; return 1; }
 	check_network || { echo '{"ok":false,"message":"lan_network_unavailable"}'; return 1; }
 	network_settings || { echo '{"ok":false,"message":"lan_ipv4_unavailable"}'; return 1; }
 	old_running=0
@@ -526,10 +601,13 @@ repair() {
 	if ! { [ "$old_running" = 1 ] && [ "$(configured_system_port)" = "$listen_port" ]; }; then
 		check_port || { echo '{"ok":false,"message":"listen_port_occupied"}'; return 1; }
 	fi
+	if [ "$clash_api_enabled" = 1 ] && ! { [ "$old_running" = 1 ] && [ "$(configured_clash_port)" = "$clash_api_port" ]; }; then
+		check_port "$clash_api_port" || { echo '{"ok":false,"message":"clash_api_port_occupied"}'; return 1; }
+	fi
 	honk_lock_acquire || { echo '{"ok":false,"message":"operation_in_progress"}'; return 1; }
 	trap 'honk_lock_release >/dev/null 2>&1' 0
 	load_settings
-	[ "$lan_network" = "$old_network" ] && [ "$listen_port" = "$old_port" ] && [ "$enabled" = "$old_enabled" ] && [ "$boot_enabled" = "$old_boot_enabled" ] && [ "$initialized" = "$old_initialized" ] || { echo '{"ok":false,"message":"settings_changed_concurrently"}'; return 1; }
+	[ "$lan_network" = "$old_network" ] && [ "$listen_port" = "$old_port" ] && [ "$enabled" = "$old_enabled" ] && [ "$boot_enabled" = "$old_boot_enabled" ] && [ "$initialized" = "$old_initialized" ] && [ "$clash_api_enabled" = "$old_clash_enabled" ] && [ "$clash_api_port" = "$old_clash_port" ] && [ "$clash_api_secret" = "$old_clash_secret" ] || { echo '{"ok":false,"message":"settings_changed_concurrently"}'; return 1; }
 	managed_core_pid >/dev/null 2>&1 && recheck_running=1 || recheck_running=0
 	[ "$recheck_running" = "$old_running" ] || { echo '{"ok":false,"message":"service_state_changed_concurrently"}'; return 1; }
 	[ "$(sha256sum /etc/honk/config.dae | awk '{print $1}')" = "$main_hash" ] || { echo '{"ok":false,"message":"main_config_changed_concurrently"}'; return 1; }
@@ -537,13 +615,16 @@ repair() {
 	if ! { [ "$old_running" = 1 ] && [ "$(configured_system_port)" = "$listen_port" ]; }; then
 		check_port || { echo '{"ok":false,"message":"listen_port_occupied"}'; return 1; }
 	fi
+	if [ "$clash_api_enabled" = 1 ] && ! { [ "$old_running" = 1 ] && [ "$(configured_clash_port)" = "$clash_api_port" ]; }; then
+		check_port "$clash_api_port" || { echo '{"ok":false,"message":"clash_api_port_occupied"}'; return 1; }
+	fi
 	if [ "$initialized" = 1 ]; then system_host=$lan_ip; else system_host=127.0.0.1; fi
 	if [ -r /usr/share/doona/index.html ] && [ -f /etc/honk/system.dae ] && [ ! -L /etc/honk/system.dae ] && system_config_readonly && \
 		grep -Fqx '    wan_interface: auto' /etc/honk/system.dae && grep -Fqx "    lan_interface: '$lan_device'" /etc/honk/system.dae && \
 		grep -Fqx "    data_dir: '/etc/honk'" /etc/honk/system.dae && grep -Fqx '    nfqueue_enable: true' /etc/honk/system.dae && \
 		grep -Fqx "        listen: '$system_host:$listen_port'" /etc/honk/system.dae && \
 		grep -Fqx "        ui: '/usr/share/doona'" /etc/honk/system.dae && grep -Fqx '        password_auth: true' /etc/honk/system.dae && \
-		grep -Fqx '        allow_anonymous_loopback: false' /etc/honk/system.dae && grep -Fqx '        config_write: true' /etc/honk/system.dae; then
+		grep -Fqx '        allow_anonymous_loopback: false' /etc/honk/system.dae && grep -Fqx '        config_write: true' /etc/honk/system.dae && clash_system_matches; then
 		echo '{"ok":true,"message":"system_config_healthy"}'
 		return 0
 	fi

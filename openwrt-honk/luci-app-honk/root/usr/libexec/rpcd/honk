@@ -48,13 +48,16 @@ lock_owner_invalid() {
 }
 
 status() {
-	local enabled initialized boot_enabled running api_url api_ready core_version doona_version kernel lan_network listen_port errors listen
+	local enabled initialized boot_enabled running api_url api_ready core_version doona_version kernel lan_network listen_port errors listen clash_api_enabled clash_api_port clash_api_secret clash_api_url clash_api_ready clash_ui_ready clash_secret_set
 	config_load honk
 	config_get_bool enabled main enabled 0
 	config_get_bool initialized main initialized 0
 	config_get_bool boot_enabled main boot_enabled 0
 	config_get listen_port main listen_port 9527
 	config_get lan_network main lan_network lan
+	config_get_bool clash_api_enabled main clash_api_enabled 0
+	config_get clash_api_port main clash_api_port 9090
+	config_get clash_api_secret main clash_api_secret ''
 	managed_pid=$(procd_core_pid)
 	if is_managed_core "$managed_pid"; then running=1; else running=0; fi
 	listen=$(sed -n "s/^[[:space:]]*listen:[[:space:]]*'\\([^']*\\)'.*/\\1/p" /etc/honk/system.dae | head -n 1)
@@ -62,6 +65,16 @@ status() {
 		''|*[!0-9.:]*) listen="127.0.0.1:$listen_port" ;;
 	esac
 	api_url="http://$listen"
+	case "$clash_api_port" in
+		''|*[!0-9]*) clash_api_port=0 ;;
+	esac
+	clash_api_url="http://${listen%:*}:$clash_api_port"
+	clash_api_ready=0
+	if [ "$running" = 1 ] && [ "$clash_api_enabled" = 1 ] && [ "$clash_api_port" -gt 0 ] && honk_lifecycle_listener_owned "$managed_pid" "$clash_api_port"; then clash_api_ready=1; fi
+	clash_ui_ready=0
+	[ -s /usr/share/honk/zashboard/index.html ] && clash_ui_ready=1
+	clash_secret_set=0
+	[ -n "$clash_api_secret" ] && clash_secret_set=1
 	if [ "$running" = 1 ] && honk_lifecycle_api_owned "$managed_pid"; then api_ready=1; else api_ready=0; fi
 	core_version=$($CORE --version 2>/dev/null | sed -n '1p')
 	[ -n "$core_version" ] || core_version=unknown
@@ -85,6 +98,12 @@ status() {
 	json_add_boolean running "$running"
 	json_add_boolean api_ready "$api_ready"
 	json_add_string api_url "$api_url"
+	json_add_boolean clash_api_enabled "$clash_api_enabled"
+	json_add_int clash_api_port "$clash_api_port"
+	json_add_boolean clash_api_secret_set "$clash_secret_set"
+	json_add_boolean clash_api_ready "$clash_api_ready"
+	json_add_boolean clash_ui_ready "$clash_ui_ready"
+	json_add_string clash_api_url "$clash_api_url"
 	json_add_string core_version "$core_version"
 	json_add_string doona_version "$doona_version"
 	json_add_string kernel "$kernel"
@@ -630,7 +649,7 @@ restore_prepare() {
 
 case "$1" in
 list)
-		echo '{"status":{},"check":{},"initialize":{"username":"String","password":"String"},"start":{},"stop":{},"restart":{},"settings":{"lan_network":"String","listen_port":"Integer","boot_enabled":"Boolean"},"add_subscription":{"name":"String","url":"String"},"add_nodes":{"links":"String"},"import_dae":{},"repair":{},"backup":{},"restore":{},"restore_prepare":{},"reset":{},"job_status":{"job_id":"String"},"logs":{"source":"String","level":"String","limit":"Integer"},"update_check":{},"update_apply":{}}'
+		echo '{"status":{},"check":{},"initialize":{"username":"String","password":"String"},"start":{},"stop":{},"restart":{},"settings":{"lan_network":"String","listen_port":"Integer","boot_enabled":"Boolean","clash_api_enabled":"Boolean","clash_api_port":"Integer","clash_api_secret":"String"},"add_subscription":{"name":"String","url":"String"},"add_nodes":{"links":"String"},"import_dae":{},"repair":{},"backup":{},"restore":{},"restore_prepare":{},"reset":{},"job_status":{"job_id":"String"},"logs":{"source":"String","level":"String","limit":"Integer"},"update_check":{},"update_apply":{}}'
 		;;
 	call)
 		case "$2" in

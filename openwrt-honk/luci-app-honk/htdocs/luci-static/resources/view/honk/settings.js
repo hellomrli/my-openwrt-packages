@@ -49,8 +49,13 @@ return view.extend({
 		const networkSelect = E('select', { 'class': 'cbi-input-select', 'name': 'lan_network', 'id': 'honk-lan-network' });
 		const portInput = E('input', { 'class': 'cbi-input-text', 'type': 'number', 'name': 'listen_port', 'id': 'honk-listen-port', 'min': '1024', 'max': '65535', 'step': '1' });
 		const bootEnabledInput = E('input', { 'type': 'checkbox', 'name': 'boot_enabled', 'id': 'honk-boot-enabled' });
+		const clashEnabledInput = E('input', { 'type': 'checkbox', 'name': 'clash_api_enabled', 'id': 'honk-clash-enabled' });
+		const clashPortInput = E('input', { 'class': 'cbi-input-text', 'type': 'number', 'name': 'clash_api_port', 'id': 'honk-clash-port', 'min': '1024', 'max': '65535', 'step': '1' });
+		const clashSecretInput = E('input', { 'class': 'cbi-input-password', 'type': 'password', 'name': 'clash_api_secret', 'id': 'honk-clash-secret', 'autocomplete': 'new-password', 'readonly': 'readonly' });
+		clashSecretInput.addEventListener('focus', function() { clashSecretInput.removeAttribute('readonly'); });
 		const message = E('p', { 'class': 'honk-status-msg', 'role': 'status' }, '');
 		const save = E('button', { 'class': 'cbi-button cbi-button-positive', 'type': 'submit' }, _('Save settings'));
+		save.disabled = !!data.statusError;
 
 		(data.networks || []).forEach(function(name) {
 			networkSelect.appendChild(E('option', { 'value': name }, name));
@@ -61,6 +66,8 @@ return view.extend({
 			networkSelect.value = data.status.lan_network;
 		portInput.value = data.status && data.status.listen_port ? String(data.status.listen_port) : '9527';
 		bootEnabledInput.checked = !!(data.status && data.status.boot_enabled === true);
+		clashEnabledInput.checked = !!(data.status && data.status.clash_api_enabled === true);
+		clashPortInput.value = data.status && data.status.clash_api_port ? String(data.status.clash_api_port) : '9090';
 
 		section.appendChild(E('h3', { 'class': 'honk-card-title' }, _('Honk settings')));
 		if (data.statusError)
@@ -72,19 +79,42 @@ return view.extend({
 		section.appendChild(field(_('LAN network'), networkSelect));
 		section.appendChild(field(_('Listen port'), portInput));
 		section.appendChild(field(_('Start Honk at boot'), bootEnabledInput));
+		section.appendChild(field(_('Enable Clash API and Zashboard'), clashEnabledInput));
+		section.appendChild(field(_('Clash API port'), clashPortInput));
+		section.appendChild(field(_('Clash API secret'), clashSecretInput));
+		section.appendChild(E('p', { 'class': 'honk-note' }, data.status && data.status.clash_api_secret_set ? _('A secret is set. Leave blank to keep it. Use your existing HTTPS reverse proxy for external access.') : _('A secret is required when enabling Clash API. Use 6–128 letters, numbers, dots, underscores or hyphens.')));
 		section.appendChild(E('div', { 'class': 'cbi-page-actions' }, save));
 		section.appendChild(message);
 		section.addEventListener('submit', function(ev) {
 			ev.preventDefault();
 			const port = Number(portInput.value);
+			const clashPort = Number(clashPortInput.value);
+			const clashSecret = clashSecretInput.value;
 			if (!networkSelect.value || !Number.isInteger(port) || port < 1024 || port > 65535) {
 				message.textContent = _('Choose a LAN network and a port from 1024 to 65535.');
+				return;
+			}
+			if (!Number.isInteger(clashPort) || clashPort < 1024 || clashPort > 65535) {
+				message.textContent = _('Clash API port must be between 1024 and 65535.');
+				return;
+			}
+			if (clashEnabledInput.checked && clashPort === port) {
+				message.textContent = _('The Clash API port must differ from the listen port.');
+				return;
+			}
+			if (clashEnabledInput.checked && !(data.status && data.status.clash_api_secret_set) && !clashSecret) {
+				message.textContent = _('A secret is required when enabling Clash API.');
+				return;
+			}
+			if (clashEnabledInput.checked && clashSecret && !/^[A-Za-z0-9._-]{6,128}$/.test(clashSecret)) {
+				message.textContent = _('The secret must be 6-128 letters, numbers, dots, underscores or hyphens.');
 				return;
 			}
 
 			save.disabled = true;
 			message.textContent = _('Saving…');
-			honk.settings(networkSelect.value, port, bootEnabledInput.checked).then(honk.ensureOk).then(function(result) {
+			honk.settings(networkSelect.value, port, bootEnabledInput.checked, clashEnabledInput.checked, clashPort, clashSecret).then(honk.ensureOk).then(function(result) {
+				clashSecretInput.value = '';
 				message.textContent = honk.resultMessage(result, _('Settings saved and applied.'));
 			}).catch(function(error) {
 				message.textContent = honk.errorMessage(error, _('Save failed. Check the settings and system status.'));

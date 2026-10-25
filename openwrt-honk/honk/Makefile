@@ -5,7 +5,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=honk
-PKG_VERSION:=2026.10.21
+PKG_VERSION:=2026.10.24
 PKG_RELEASE:=1
 
 # Pinned honk-core revision (Glassyiris/honk feat/native-api), cross-compiled by
@@ -87,7 +87,7 @@ define Package/honk/install
 	$(INSTALL_DIR) $(1)/etc/honk
 	$(INSTALL_CONF) $(CURDIR)/files/config.dae $(1)/etc/honk/config.dae
 	$(INSTALL_CONF) $(CURDIR)/files/system.dae $(1)/etc/honk/system.dae
-	chmod 0444 $(1)/etc/honk/system.dae
+	chmod 0600 $(1)/etc/honk/system.dae
 	$(INSTALL_DIR) $(1)/etc/honk/state
 	chmod 0700 $(1)/etc/honk/state
 

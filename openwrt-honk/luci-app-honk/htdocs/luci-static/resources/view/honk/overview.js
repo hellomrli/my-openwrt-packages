@@ -5,6 +5,7 @@
 'require poll';
 'require view';
 'require view.honk.rpc as honk';
+'require uci';
 
 function getNetworkNames(networks) {
 	if (!networks)
@@ -81,9 +82,10 @@ return view.extend({
 	load: function() {
 		return Promise.all([
 			honk.status().then(function(status) { return { status: status }; }).catch(function(error) { return { error: error.message || String(error) }; }),
-			network.getNetworks().then(getNetworkNames).then(function(networks) { return { networks: networks }; }).catch(function() { return { networks: [] }; })
+			network.getNetworks().then(getNetworkNames).then(function(networks) { return { networks: networks }; }).catch(function() { return { networks: [] }; }),
+			uci.load('honk').then(function() { return { clash_secret: uci.get('honk', 'main', 'clash_api_secret') || '' }; }).catch(function() { return { clash_secret: '' }; })
 		]).then(function(results) {
-			return Object.assign({}, results[0], results[1]);
+			return Object.assign({}, results[0], results[1], results[2]);
 		});
 	},
 
@@ -94,6 +96,7 @@ return view.extend({
 		const actionMessage = E('p', { 'class': 'honk-status-msg', 'role': 'status' }, '');
 		const setupArea = E('div');
 		let currentStatus = data.status;
+		const clashSecret = data.clash_secret || '';
 		let busy = false;
 		let setupBusy = false;
 		let settingsBusy = false;
@@ -128,6 +131,15 @@ return view.extend({
 				'type': webUi ? null : 'button',
 				'disabled': webUi ? null : true
 			}, _('Open Doona'));
+			const clashUi = honk.localClashUi(status, clashSecret);
+			const openClash = E(clashUi ? 'a' : 'button', {
+				'class': 'cbi-button cbi-button-action',
+				'href': clashUi || null,
+				'target': clashUi ? '_blank' : null,
+				'rel': clashUi ? 'noopener noreferrer' : null,
+				'type': clashUi ? null : 'button',
+				'disabled': clashUi ? null : true
+			}, _('Open Clash panel'));
 
 			const toggle = E('button', {
 				'class': 'cbi-button cbi-button-action',
@@ -140,7 +152,7 @@ return view.extend({
 				runAction(running ? 'stop' : 'start');
 			});
 
-			const actions = [ openDoona, toggle ];
+			const actions = [ openDoona, openClash, toggle ];
 			if (running) {
 				const restart = E('button', { 'class': 'cbi-button', 'type': 'button', 'data-action': 'restart' }, _('Restart'));
 				restart.disabled = busy;
@@ -162,7 +174,8 @@ return view.extend({
 				E('div', { 'class': 'honk-meta' }, [
 					metaItem(_('Core version'), status.core_version),
 					metaItem(_('Doona version'), status.doona_version),
-					metaItem(_('Kernel'), status.kernel)
+					metaItem(_('Kernel'), status.kernel),
+					metaItem(_('Clash API'), status.clash_api_enabled ? status.clash_api_url : _('Off'))
 				])
 			]);
 
@@ -171,6 +184,8 @@ return view.extend({
 					!running ? _('Start Honk to open Doona.') : _('Doona is not ready yet. Check the service status.');
 				statusCard.appendChild(E('p', { 'class': 'honk-note', 'role': 'status' }, reason));
 			}
+			if (status.clash_api_enabled && running && !clashUi)
+				statusCard.appendChild(E('p', { 'class': 'honk-note', 'role': 'status' }, status.clash_api_ready ? _('Zashboard is still downloading or unavailable.') : _('The Clash API listener is unavailable. Check the service logs.')));
 
 			const errors = (Array.isArray(status.errors) ? status.errors : []).filter(function(token) {
 				return token !== 'disabled' && token !== 'not_initialized' && token !== 'service_not_running';
@@ -197,6 +212,10 @@ return view.extend({
 			const networkSelect = E('select', { 'class': 'cbi-input-select', 'name': 'lan_network', 'id': 'honk-lan-network' });
 			const portInput = E('input', { 'class': 'cbi-input-text', 'type': 'number', 'name': 'listen_port', 'id': 'honk-listen-port', 'min': '1024', 'max': '65535', 'step': '1' });
 			const bootEnabledInput = E('input', { 'type': 'checkbox', 'name': 'boot_enabled', 'id': 'honk-boot-enabled' });
+			const clashEnabledInput = E('input', { 'type': 'checkbox', 'name': 'clash_api_enabled', 'id': 'honk-clash-enabled' });
+			const clashPortInput = E('input', { 'class': 'cbi-input-text', 'type': 'number', 'name': 'clash_api_port', 'id': 'honk-clash-port', 'min': '1024', 'max': '65535', 'step': '1' });
+			const clashSecretInput = E('input', { 'class': 'cbi-input-password', 'type': 'password', 'name': 'clash_api_secret', 'id': 'honk-clash-secret', 'autocomplete': 'new-password', 'readonly': 'readonly' });
+			clashSecretInput.addEventListener('focus', function() { clashSecretInput.removeAttribute('readonly'); });
 			const message = E('p', { 'class': 'honk-status-msg', 'role': 'status' }, '');
 			const save = E('button', { 'class': 'cbi-button cbi-button-positive', 'type': 'submit' }, _('Save service settings'));
 
@@ -209,6 +228,8 @@ return view.extend({
 				networkSelect.value = status.lan_network;
 			portInput.value = status.listen_port ? String(status.listen_port) : '9527';
 			bootEnabledInput.checked = status.boot_enabled === true;
+			clashEnabledInput.checked = status.clash_api_enabled === true;
+			clashPortInput.value = status.clash_api_port ? String(status.clash_api_port) : '9090';
 
 			card.appendChild(E('h3', { 'class': 'honk-card-title' }, _('Service settings')));
 			if (!(data.networks || []).length)
@@ -216,20 +237,43 @@ return view.extend({
 			form.appendChild(field(_('LAN network'), networkSelect));
 			form.appendChild(field(_('Listen port'), portInput));
 			form.appendChild(field(_('Start Honk at boot'), bootEnabledInput));
+			form.appendChild(field(_('Enable Clash API and Zashboard'), clashEnabledInput));
+			form.appendChild(field(_('Clash API port'), clashPortInput));
+			form.appendChild(field(_('Clash API secret'), clashSecretInput, status.clash_api_secret_set ? _('A secret is set. Leave blank to keep it.') : _('Required when enabling. Use 6–128 letters, numbers, dots, underscores or hyphens.')));
+			form.appendChild(E('p', { 'class': 'honk-note' }, _('Use your existing HTTPS reverse proxy for external access. Enter the secret in Zashboard when connecting.')));
 			form.appendChild(E('div', { 'class': 'cbi-page-actions' }, save));
 			form.appendChild(message);
 			form.addEventListener('submit', function(ev) {
 				ev.preventDefault();
 				const port = Number(portInput.value);
+				const clashPort = Number(clashPortInput.value);
+				const clashSecret = clashSecretInput.value;
 				if (!networkSelect.value || !Number.isInteger(port) || port < 1024 || port > 65535) {
 					message.textContent = _('Choose a LAN network and a port from 1024 to 65535.');
+					return;
+				}
+				if (!Number.isInteger(clashPort) || clashPort < 1024 || clashPort > 65535) {
+					message.textContent = _('Clash API port must be between 1024 and 65535.');
+					return;
+				}
+				if (clashEnabledInput.checked && clashPort === port) {
+					message.textContent = _('The Clash API port must differ from the listen port.');
+					return;
+				}
+				if (clashEnabledInput.checked && !status.clash_api_secret_set && !clashSecret) {
+					message.textContent = _('A secret is required when enabling Clash API.');
+					return;
+				}
+				if (clashEnabledInput.checked && clashSecret && !/^[A-Za-z0-9._-]{6,128}$/.test(clashSecret)) {
+					message.textContent = _('The secret must be 6-128 letters, numbers, dots, underscores or hyphens.');
 					return;
 				}
 
 				save.disabled = true;
 				settingsBusy = true;
 				message.textContent = _('Saving…');
-				honk.settings(networkSelect.value, port, bootEnabledInput.checked).then(honk.ensureOk).then(function(result) {
+				honk.settings(networkSelect.value, port, bootEnabledInput.checked, clashEnabledInput.checked, clashPort, clashSecret).then(honk.ensureOk).then(function(result) {
+					clashSecretInput.value = '';
 					message.textContent = honk.resultMessage(result, _('Service settings saved.'));
 				}).catch(function(error) {
 					message.textContent = honk.errorMessage(error, _('Settings could not be applied.'));
