@@ -1,6 +1,6 @@
 # Synced Sources
 
-Last sync: `2026-10-29 05:58:28 UTC`
+Last sync: `2026-10-29 13:17:54 UTC`
 
 | Package | Path | Branch | Commit | Upstream |
 |---------|------|--------|--------|----------|
@@ -10,12 +10,12 @@ Last sync: `2026-10-29 05:58:28 UTC`
 | openwrt-daede | `openwrt-daede` | `main` | `183b5a22b0b9` | https://github.com/kenzok8/openwrt-daede.git |
 | luci-app-adguardhome | `luci-app-adguardhome` | `master` | `37fdf502b993` | https://github.com/rufengsuixing/luci-app-adguardhome.git |
 | luci-app-mosdns | `luci-app-mosdns` | `v5` | `dbdd91ab8ac8` | https://github.com/sbwml/luci-app-mosdns.git |
-| openwrt-passwall | `openwrt-passwall` | `main` | `ff82e10c6b38` | https://github.com/Openwrt-Passwall/openwrt-passwall.git |
-| openwrt-passwall2 | `openwrt-passwall2` | `main` | `b7ec339b373f` | https://github.com/Openwrt-Passwall/openwrt-passwall2.git |
+| openwrt-passwall | `openwrt-passwall` | `main` | `d5795638459e` | https://github.com/Openwrt-Passwall/openwrt-passwall.git |
+| openwrt-passwall2 | `openwrt-passwall2` | `main` | `90445447a9f5` | https://github.com/Openwrt-Passwall/openwrt-passwall2.git |
 | luci-app-vlmcsd | `luci-app-vlmcsd` | `master` | `530a6ee0f075` | https://github.com/mchome/luci-app-vlmcsd.git |
 | luci-app-smartdns | `luci-app-smartdns` | `master` | `581e5e816d92` | https://github.com/pymumu/luci-app-smartdns.git |
 | golang | `golang` | `27.x` | `cd8953c31e0f` | https://github.com/sbwml/packages_lang_golang.git |
-| openwrt-honk | `openwrt-honk` | `v2026.10.28-r40641440063` | `d179d4838bbe` | https://github.com/kenzok8/openwrt-honk.git |
+| openwrt-honk | `openwrt-honk` | `v2026.10.29-r40827925214` | `c11cd6544073` | https://github.com/kenzok8/openwrt-honk.git |
 
 Overridden after sync (see `overrides/README.md`):
 

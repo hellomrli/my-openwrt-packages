@@ -1,12 +1,12 @@
 {
   "format": 1,
   "upstream": "https://github.com/kenzok8/openwrt-honk.git",
-  "upstream_release": "v2026.10.28-r40641440063",
-  "source_tag": "source-40641440063",
-  "wrapper_commit": "d179d4838bbe74040ccbf142664907edc98369db",
+  "upstream_release": "v2026.10.29-r40827925214",
+  "source_tag": "source-40827925214",
+  "wrapper_commit": "c11cd6544073e99f000e0bd3a5bb2bbb6d40543b",
   "mirror_repository": "https://github.com/hellomrli/my-openwrt-packages.git",
-  "mirror_release": "honk-source-40641440063",
-  "release_url": "https://github.com/hellomrli/my-openwrt-packages/releases/download/honk-source-40641440063",
+  "mirror_release": "honk-source-40827925214",
+  "release_url": "https://github.com/hellomrli/my-openwrt-packages/releases/download/honk-source-40827925214",
   "core": {
     "repository": "https://github.com/Glassyiris/honk.git",
     "commit": "aebc0d78d567cac1cd74ee9c56674857c5441451",
@@ -21,23 +21,23 @@
   "assets": {
     "honk_x86_64": {
       "name": "honk-core-aebc0d78d567cac1cd74ee9c56674857c5441451-x86_64.tar.gz",
-      "sha256": "336fbd862e61be7340a871495032d57093c0f564a1efe0d4709635a3d39a3ec6",
-      "size": 12768498
+      "sha256": "20293344e2b3eb287b793b1b34a58e11f04cd8100e03a38af4eedf7c0bb6e99b",
+      "size": 12774633
     },
     "honk_aarch64": {
       "name": "honk-core-aebc0d78d567cac1cd74ee9c56674857c5441451-aarch64.tar.gz",
-      "sha256": "2a45ed3b5dcb97a18ab1cdd12c111e7bf0e0e99e67a850bc03646a70948e36d7",
-      "size": 12102649
+      "sha256": "3603497964db81622536f86b4c9352d3eb5492e3b4d28a39f4f4541a9d8391d1",
+      "size": 12107013
     },
     "honk_armv7": {
       "name": "honk-core-aebc0d78d567cac1cd74ee9c56674857c5441451-armv7.tar.gz",
-      "sha256": "dc7f5711bf96c3246be8993e2b729255ea51f9015f8037afe772e4737d55f0cf",
-      "size": 12383009
+      "sha256": "334550d3c90a016b5b1f3b43137e11a2b76a13bfa4a75d24a67a9a198c962ccc",
+      "size": 12390559
     },
     "doona": {
-      "name": "doona-815d3ac3-2cf143fb4db8.tar.gz",
-      "sha256": "2cf143fb4db8b11c9a672c369432adb5d15dd3ff2607121827590ab3db9012ac",
-      "size": 1300703
+      "name": "doona-21a6d7a0-b26231019769.tar.gz",
+      "sha256": "b2623101976979b30c7e9b23037215bf231357927738a77136647acf85a6bc3a",
+      "size": 1305810
     }
   }
 }
