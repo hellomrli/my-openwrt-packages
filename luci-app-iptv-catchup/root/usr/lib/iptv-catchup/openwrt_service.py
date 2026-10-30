@@ -8,10 +8,12 @@ from pathlib import Path
 if __package__:
     from .build_playlists import PLACEHOLDERS, build_playlists, load_config, validate_base_url
     from .catchup_server import CatchupHTTPServer, CatchupService, ChannelCatalog, ServiceError
+    from .diagnostics import LOG_MODES, configure_logging
     from .sync_iptv import extract_channel_id, parse_m3u
 else:
     from build_playlists import PLACEHOLDERS, build_playlists, load_config, validate_base_url
     from catchup_server import CatchupHTTPServer, CatchupService, ChannelCatalog, ServiceError
+    from diagnostics import LOG_MODES, configure_logging
     from sync_iptv import extract_channel_id, parse_m3u
 
 
@@ -37,7 +39,7 @@ class RouterService(CatchupService):
 
     def document(self, name: str) -> str:
         if name not in ("IPTV.m3u", "IPTV-catchup.m3u", "gx.m3u"):
-            raise ServiceError(404, "unknown playlist")
+            raise ServiceError(404, "unknown playlist", "not_found")
         # Reload data on demand without writing generated lists to router flash.
         text = gateway_playlist(self.playlist_path.read_text(encoding="utf-8-sig"), self.gateway)
         config = load_config(self.config_path)
@@ -55,7 +57,10 @@ def main() -> int:
     parser.add_argument("--format", choices=PLACEHOLDERS, default="ku9")
     parser.add_argument("--playlist", type=Path, default=Path("/etc/iptv-catchup/IPTV.m3u"))
     parser.add_argument("--config", type=Path, default=Path("/etc/iptv-catchup/catchup.json"))
+    parser.add_argument("--access-log", choices=LOG_MODES, default="errors",
+                        help="JSON access logs: errors/slow requests (default), all, or off.")
     args = parser.parse_args()
+    configure_logging()
     try:
         host = str(IPv4Address(args.host))
         if not 1024 <= args.port <= 65535:
@@ -64,7 +69,7 @@ def main() -> int:
             raise ValueError("base-url is required when listening on all interfaces")
         base = args.base_url or f"http://{host}:{args.port}"
         service = RouterService(args.gateway, args.playlist, args.config, base, args.format)
-        server = CatchupHTTPServer((host, args.port), service)
+        server = CatchupHTTPServer((host, args.port), service, access_log=args.access_log)
     except (OSError, ValueError, KeyError, TypeError) as exc:
         parser.exit(1, f"startup failed: {exc}\n")
     with server:

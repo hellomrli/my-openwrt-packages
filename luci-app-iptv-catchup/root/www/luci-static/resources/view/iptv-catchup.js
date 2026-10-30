@@ -87,6 +87,14 @@ return view.extend({
 		o.value('unix', '通用（Unix 秒，{utc} / {utcend}）');
 		o.default = 'ku9';
 		o.rmempty = false;
+		o = s.option(form.ListValue, 'access_log', '诊断日志');
+		o.value('errors', '仅失败和慢请求（推荐）');
+		o.value('all', '全部请求（临时排障）');
+		o.value('off', '关闭日志（保留内存统计）');
+		o.default = 'errors';
+		o.rmempty = false;
+		o.description = '记录请求 ID、耗时、探测和纠偏信息，不记录完整 URL、会话令牌或客户端 IP。' +
+			'状态接口保留最近各 20 条失败及耗时达到 2 秒的请求；重启后清空。全部日志建议只在复现卡顿时短期开启。';
 		this.state = E('strong');
 		this.links = E('div');
 		var status = E('div', { 'class': 'cbi-section' }, [

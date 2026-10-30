@@ -1,6 +1,7 @@
 import io
 import json
 import os
+import re
 import threading
 import time
 import unittest
@@ -19,13 +20,13 @@ ANCHOR_SEQ = 1750168375
 CID = "3221225934"
 
 
-def anchor_at(unix=ANCHOR_TIME, seq=ANCHOR_SEQ):
+def anchor_at(unix=ANCHOR_TIME, seq=ANCHOR_SEQ, **metadata):
     dt = datetime.fromtimestamp(unix, timezone.utc)
     bucket = dt.strftime("%d%H") + ("00" if dt.minute < 30 else "30")
     url = (f"http://gateway.test/prefix/PLTV/77777777/224/{CID}/1/"
            f"{dt:%Y%m}/{bucket}/{unix}-1-{seq}.hls.ts?zduration=10&ts_min=1"
            "&prog_time=20261024150000&IASHttpSessionId=a%2Bb&ispcode=1108&ztecid=" + CID)
-    return cs.Anchor(url, unix, seq)
+    return cs.Anchor(url, unix, seq, **metadata)
 
 
 class Response(io.BytesIO):
@@ -83,6 +84,22 @@ class AnchorTests(unittest.TestCase):
         self.assertEqual(urlsplit(anchor.url).query, "token=def")
         self.assertTrue(anchor.url.startswith("http://gateway.test/PLTV/224/1/1/"))
 
+    def test_preserves_discontinuities_and_segment_sequence_points(self):
+        first, last = anchor_at(ANCHOR_TIME - 10, ANCHOR_SEQ - 1), anchor_at()
+        body = ("#EXTM3U\n#EXT-X-DISCONTINUITY-SEQUENCE:4\n#EXTINF:10,\n" + first.url
+                + "\n#EXT-X-DISCONTINUITY\n#EXTINF:10,\n" + last.url + "\n")
+        anchor = cs.parse_anchor(body, "http://gateway.test/index.m3u8")
+        self.assertEqual(anchor.discontinuities, (ANCHOR_TIME,))
+        self.assertEqual(anchor.points, ((first.unix, first.seq), (last.unix, last.seq)))
+
+    def test_sequence_or_time_gap_is_a_timeline_boundary(self):
+        for unix, seq in ((ANCHOR_TIME, ANCHOR_SEQ + 2), (ANCHOR_TIME + 10, ANCHOR_SEQ)):
+            with self.subTest(unix=unix, seq=seq):
+                body = ("#EXTM3U\n#EXTINF:10,\n" + anchor_at(ANCHOR_TIME - 10, ANCHOR_SEQ - 1).url
+                        + "\n#EXTINF:10,\n" + anchor_at(unix, seq).url)
+                self.assertEqual(cs.parse_anchor(body, "http://gateway.test/index.m3u8").discontinuities,
+                                 (unix,))
+
     def test_bad_media_and_unsupported_encryption(self):
         for body in ("<html>not HLS</html>", "#EXTM3U\n", "#EXTM3U\n#EXTINF:6,\n" + anchor_at().url,
                      '#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI="key"\n',
@@ -123,7 +140,9 @@ class ServiceTests(unittest.TestCase):
         urls = [line for line in result.splitlines() if not line.startswith("#")]
         self.assertEqual(len(urls), 3)
         self.assertIn(f"/{ANCHOR_TIME - 60}/{ANCHOR_SEQ - 6}.ts", urls[0])
-        self.assertIn("#EXT-X-START:TIME-OFFSET:3.000,PRECISE=YES", result)
+        start_tag = next(line for line in result.splitlines() if line.startswith("#EXT-X-START:"))
+        attributes = dict(re.findall(r"([A-Z-]+)=([^,]+)", start_tag.split(":", 1)[1]))
+        self.assertEqual(attributes, {"TIME-OFFSET": "3.000", "PRECISE": "YES"})
         self.assertIn("#EXT-X-ENDLIST", result)
         self.assertEqual(self.probe.call_count, 1)
         full = urljoin(f"http://service.test/catchup/{CID}/{start}/{start + 25}/index.m3u8", urls[0])
@@ -218,6 +237,144 @@ class ServiceTests(unittest.TestCase):
         self.service.resolve_segment(CID, ANCHOR_TIME - 30, ANCHOR_SEQ - 3, cs.Budget())
         self.assertEqual(self.probe.call_count, 2)
 
+    def test_small_sequence_drifts_are_not_false_missing_segments(self):
+        for drift in (-5, -4, -3, -2, 2, 3, 4, 5):
+            with self.subTest(drift=drift):
+                service = cs.CatchupService("http://gateway.test", {CID: 1})
+                expected = ANCHOR_SEQ + drift
+                with patch.object(service, "fetch_live", return_value=anchor_at()), patch.object(
+                    service, "probe", side_effect=lambda url, budget: cs.urlsplit(url).path.endswith(
+                        f"-{expected}.hls.ts")
+                ):
+                    _, seq = service.resolve_segment(CID, ANCHOR_TIME, ANCHOR_SEQ, cs.Budget())
+                    self.assertEqual(seq, expected)
+
+    def test_playback_reuses_drift_after_crossing_a_historical_boundary(self):
+        start = ANCHOR_TIME - 3600
+        initial_seq = ANCHOR_SEQ - 360
+        for drift in (2, 60):
+            with self.subTest(drift=drift):
+                service = cs.CatchupService("http://gateway.test", {CID: 1})
+                live_drift = 6 if drift == 2 else drift
+
+                def actual_seq(unix):
+                    offset = 0 if unix < start + 120 else drift if unix < start + 1800 else live_drift
+                    return initial_seq + (unix - start) // cs.SEG_DUR + offset
+
+                def available(url, budget):
+                    match = cs.SEGMENT_RE.fullmatch(cs.urlsplit(url).path)
+                    return int(match["seq"]) == actual_seq(int(match["unix"]))
+
+                with patch.object(service, "fetch_live", return_value=anchor_at(seq=actual_seq(ANCHOR_TIME))), \
+                        patch.object(service, "probe", side_effect=available) as probe:
+                    body = service.playlist(CID, start, start + 600, cs.Budget())
+                    urls = [line for line in body.splitlines() if line and not line.startswith("#")]
+                    counts = []
+                    for url in urls:
+                        _, unix, seq = re.search(r"/(\d+)/(\d+)/(\d+)\.ts$", url).groups()
+                        probe.reset_mock()
+                        _, resolved = service.resolve_segment(CID, int(unix), int(seq), cs.Budget())
+                        self.assertEqual(resolved, actual_seq(int(unix)))
+                        counts.append(probe.call_count)
+                    self.assertGreater(counts[12], 1)
+                    self.assertEqual(counts[13:], [1] * (len(urls) - 13))
+
+    def test_sequence_hints_are_local_to_channel_time_and_expire(self):
+        base = ANCHOR_TIME - 300
+        with patch.object(cs.time, "monotonic", return_value=100):
+            with self.service.lock:
+                self.service.remember_sequence(CID, base, 200)
+        cases = ((CID, base + 10, 500, 101, 201),
+                 ("999", base + 10, 500, 101, 500),
+                 (CID, base + 100, 500, 101, 500),
+                 (CID, base + 10, 500, 401, 500))
+        for cid, unix, requested, clock, expected in cases:
+            with self.subTest(cid=cid, unix=unix, clock=clock), patch.object(cs.time, "monotonic", return_value=clock):
+                self.service.targets.clear()
+                self.probe.reset_mock()
+                self.probe.side_effect = None
+                _, resolved = self.service.resolve_segment(cid, unix, requested, cs.Budget())
+                self.assertEqual(resolved, expected)
+                self.assertEqual(self.probe.call_count, 1)
+
+    def test_bad_neighbor_hint_is_validated_before_falling_back(self):
+        with self.service.lock:
+            self.service.remember_sequence(CID, ANCHOR_TIME - 10, ANCHOR_SEQ + 60)
+        self.probe.side_effect = [False, True]
+        _, seq = self.service.resolve_segment(CID, ANCHOR_TIME, ANCHOR_SEQ, cs.Budget())
+        self.assertEqual(seq, ANCHOR_SEQ)
+        self.assertEqual(self.probe.call_count, 2)
+
+    def test_hints_and_resolved_urls_have_bounded_and_expiring_storage(self):
+        with patch.object(cs, "MAX_TARGETS", 3), patch.object(cs.time, "monotonic", return_value=100):
+            for index in range(8):
+                self.service.resolve_segment(CID, ANCHOR_TIME - 200 + index * 10, index + 100, cs.Budget())
+            self.assertEqual(len(self.service.targets), 3)
+            self.assertEqual(len(self.service.sequences), 3)
+        with patch.object(cs.time, "monotonic", return_value=401):
+            status = self.service.status()
+        self.assertEqual(status["cached_targets"], 0)
+        self.assertEqual(status["sequence_hints"], 0)
+
+    def test_known_discontinuity_survives_live_playlist_rotation(self):
+        boundary = ANCHOR_TIME - 30
+        self.service.remember_timeline(CID, anchor_at(discontinuities=(boundary,)))
+        self.service.remember_timeline(CID, anchor_at(discontinuities=(boundary,)))
+        start = ANCHOR_TIME - 60
+        before = self.service.playlist(CID, start, None, cs.Budget())
+        self.assertEqual(before.splitlines().count("#EXT-X-DISCONTINUITY"), 1)
+        self.assertIn(f"#EXT-X-DISCONTINUITY\n#EXT-X-PROGRAM-DATE-TIME:", before)
+        after_boundary = before.split("#EXT-X-DISCONTINUITY\n", 1)[1]
+        self.assertIn(f"/{boundary}/", after_boundary.splitlines()[2])
+        self.service.remember_timeline(CID, anchor_at(ANCHOR_TIME + 200, ANCHOR_SEQ + 20))
+        with patch.object(cs.time, "time", return_value=NOW + 200):
+            self.live.return_value = anchor_at(ANCHOR_TIME + 200, ANCHOR_SEQ + 20)
+            after = self.service.playlist(CID, start, None, cs.Budget())
+        self.assertEqual(after.splitlines().count("#EXT-X-DISCONTINUITY"), 1)
+        self.assertIn("#EXT-X-DISCONTINUITY-SEQUENCE:0", after)
+
+    def test_discontinuity_sequence_advances_only_when_boundary_leaves_window(self):
+        start = ANCHOR_TIME - 60
+        boundary = ANCHOR_TIME - 30
+        self.service.remember_timeline(CID, anchor_at(discontinuities=(boundary,)))
+        with patch.object(cs, "MAX_WINDOW", 60):
+            before = self.service.playlist(CID, start, None, cs.Budget())
+            self.live.return_value = anchor_at(ANCHOR_TIME + 40, ANCHOR_SEQ + 4)
+            with patch.object(cs.time, "time", return_value=NOW + 40):
+                after = self.service.playlist(CID, start, None, cs.Budget())
+        self.assertIn("#EXT-X-DISCONTINUITY-SEQUENCE:0", before)
+        self.assertIn("#EXT-X-DISCONTINUITY-SEQUENCE:1", after)
+        self.assertNotIn("#EXT-X-DISCONTINUITY", after.splitlines())
+        # Continuous segments must not acquire artificial decoder resets.
+        self.assertEqual(before.splitlines().count("#EXT-X-DISCONTINUITY"), 1)
+
+    def test_timeline_is_bounded_without_renumbering_remaining_boundaries(self):
+        timeline = cs.Timeline()
+        with patch.object(cs, "MAX_DISCONTINUITIES", 2):
+            timeline.observe((10, 20, 30, 40))
+            self.assertEqual(timeline.boundaries, [30, 40])
+            self.assertEqual(timeline.window(35, 60), (3, frozenset((40,))))
+            timeline.observe((10, 20, 30, 40, 50))
+            self.assertEqual(timeline.window(45, 60), (4, frozenset((50,))))
+
+    def test_discontinuities_do_not_cross_channels(self):
+        self.service.remember_timeline("999", anchor_at(discontinuities=(ANCHOR_TIME - 30,)))
+        body = self.service.playlist(CID, ANCHOR_TIME - 60, None, cs.Budget())
+        self.assertNotIn("#EXT-X-DISCONTINUITY", body.splitlines())
+
+    def test_observed_boundary_outside_timestamp_grid_fails_explicitly(self):
+        self.service.remember_timeline(CID, anchor_at(discontinuities=(ANCHOR_TIME - 31,)))
+        with self.assertRaises(cs.ServiceError) as raised:
+            self.service.playlist(CID, ANCHOR_TIME - 60, None, cs.Budget())
+        self.assertEqual(raised.exception.status, 502)
+        self.assertIn("timestamp phase", str(raised.exception))
+
+    def test_expired_budget_cannot_return_a_cached_segment(self):
+        self.service.resolve_segment(CID, ANCHOR_TIME - 30, ANCHOR_SEQ - 3, cs.Budget())
+        with self.assertRaises(cs.ServiceError) as raised:
+            self.service.resolve_segment(CID, ANCHOR_TIME - 30, ANCHOR_SEQ - 3, cs.Budget(-1))
+        self.assertEqual(raised.exception.status, 504)
+
 
 class NetworkTests(unittest.TestCase):
     def setUp(self):
@@ -225,7 +382,7 @@ class NetworkTests(unittest.TestCase):
 
     def test_ts_probe_closes_response_and_uses_small_range(self):
         response = Response(b"\x47" + b"x" * 187, 206)
-        with patch.object(cs, "urlopen", return_value=response) as fetch:
+        with patch.object(cs, "open_with_deadline", return_value=response) as fetch:
             self.assertTrue(self.service.probe("http://gateway.test/test.ts", cs.Budget()))
         self.assertTrue(response.closed)
         self.assertEqual(fetch.call_args.args[0].headers["Range"], "bytes=0-187")
@@ -264,6 +421,16 @@ class NetworkTests(unittest.TestCase):
             self.assertEqual(fetch.call_count, 2)
             self.assertIn("&_cb=", fetch.call_args.args[0])
         self.assertTrue(all(response.closed for response in responses))
+
+    def test_fetch_records_the_actual_live_sequence_and_discontinuity(self):
+        body = ("#EXTM3U\n#EXTINF:10,\n" + anchor_at(ANCHOR_TIME - 10, ANCHOR_SEQ - 1).url
+                + "\n#EXT-X-DISCONTINUITY\n#EXTINF:10,\n" + anchor_at().url)
+        with patch.object(cs.time, "time", return_value=NOW), patch.object(
+            self.service, "request", return_value=Response(body.encode())
+        ):
+            self.service.fetch_live(CID, cs.Budget())
+        self.assertEqual(self.service.sequences[(CID, ANCHOR_TIME)][1], ANCHOR_SEQ)
+        self.assertEqual(self.service.timelines[CID].boundaries, [ANCHOR_TIME])
 
     def test_anchor_refreshes_after_ttl(self):
         responses = [Response(("#EXTM3U\n#EXTINF:10,\n" + a.url).encode())
