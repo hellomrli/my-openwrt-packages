@@ -72,8 +72,8 @@ DMCA 下架都不算罕见，一旦发生，固件立刻无法编译，而且往
 LuCI 配置页及 Python 服务，当前版本 **0.1.0-r1**。独立使用 LAN 8088 端口，
 不录制、不代理视频，不替换现有直播网关或扫描器；内置 124 个频道、79 个回放白名单。
 当前源码为 **0.1.2-r1**，由 `my-IPTV` 导出，包含回放请求总超时与脱敏诊断日志修复。
-APK 构建产物见 [IPTV 插件构建](https://github.com/hellomrli/my-openwrt-packages/actions/workflows/check-iptv-catchup.yml)，
-历史安装包见 [IPTV 插件 Release](https://github.com/hellomrli/my-openwrt-packages/releases/tag/iptv-catchup-v0.1.0-r1)。
+可安装 APK 与 SHA256 校验文件见 [IPTV 插件 Release](https://github.com/hellomrli/my-openwrt-packages/releases/tag/iptv-catchup-v0.1.2-r1)，
+测试与打包记录见 [IPTV 插件构建](https://github.com/hellomrli/my-openwrt-packages/actions/workflows/check-iptv-catchup.yml)。
 旧版 opkg 固件需使用匹配 SDK 编译 IPK。配置、订阅及使用边界见
 [插件文档](luci-app-iptv-catchup/README.md)。此目录不加入 `sources.json`，自动同步不会覆盖。
 
