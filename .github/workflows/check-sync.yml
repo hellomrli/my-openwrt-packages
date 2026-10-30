@@ -1,0 +1,40 @@
+name: Check package sync
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'scripts/**'
+      - 'tests/**'
+      - '.github/workflows/check-sync.yml'
+      - '.github/workflows/sync-packages.yml'
+  pull_request:
+    paths:
+      - 'scripts/**'
+      - 'tests/**'
+      - '.github/workflows/check-sync.yml'
+      - '.github/workflows/sync-packages.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-package-sync-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        python: ['3.12', '3.14']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Offline release sync regression tests
+        run: |
+          python3 -m unittest discover -s tests -v
+          python3 -m py_compile scripts/honk_sync.py scripts/sync-packages.py
+          git diff --check

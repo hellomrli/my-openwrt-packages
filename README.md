@@ -32,13 +32,17 @@ DMCA 下架都不算罕见，一旦发生，固件立刻无法编译，而且往
 | `lucky` / `luci-app-lucky` | `luci-app-lucky` | `gdy666/luci-app-lucky` + [官方文件服务](https://release.66666.host/) | Lucky 运行时和 LuCI 管理界面。核心包 3.x 只在官方文件服务发布，由 [`overrides/`](overrides/README.md) 固定；LuCI 界面仍跟随上游。 |
 | `watchdog` / `luci-app-watchdog` | `luci-app-watchdog` | `sirpdboy/luci-app-watchdog` | 登录 / SSH 失败登录防护。 |
 
-**Honk 按 release 而不是按分支同步。** 上游的 `honk/Makefile` 只带一个指向滚动
-`staging` release、哈希为 `SKIP` 的兜底；真正可用的是每个 release 附带的
-`generated-stage.mk`、`generated-doona-stage.mk`、来源清单，以及被它们锁定 SHA256 的
-核心与 Doona 归档。`scripts/honk_sync.py` 因此以最新的 `v<日期>-r<构建号>` release 为准：
-解析出对应的 wrapper commit，同步 `honk/` 与 `luci-app-honk/`，校验并重新上传全部资源到
-本仓库的 `honk-source-<构建号>` release，再把两个 stage 文件里的下载地址改写成该 release。
-固件构建只访问本仓库，不再需要 `kenzok8/openwrt-honk` 仍然存在。
+**Honk 按 release 而不是按分支同步。** 继续使用 `kenzok8/openwrt-honk` 的核心、LuCI
+和 Doona 集成，不切换官方核心。`scripts/honk_sync.py` 读取最新正式发布的
+`release-manifest.json`，核对 `candidate_sha` 与 release tag 实际指向的 wrapper commit，
+再从 manifest 的 `source_tag` 获取 `generated-stage.mk`、`generated-doona-stage.mk`、
+来源清单和 SHA256 锁定的归档。**发布标签的 `r` 后缀不是源码构建号，不能据此拼下载地址。**
+
+同步同时核对包版本、核心提交、manifest 中提供的归档摘要及 stage 文件中的全部摘要，
+校验成功后才把资源镜像到本仓库的 `honk-source-<源码构建号>` release，并改写两个 stage
+文件的下载地址。缺失或不匹配的 manifest 会中止同步，不回退滚动 `staging`，也不接受
+`SKIP`。新版上游 Makefile 虽然自带固定资源地址，镜像仍使用 stage 文件将下载完全留在
+本仓库；固件构建不再需要 `kenzok8/openwrt-honk` 仍然存在。
 
 **dae 相关包只保留 `kenzok8/openwrt-daede` 一个来源。** 早先镜像过的
 `QiuSimons/luci-app-daed`（旧 `dae/` 路径）已移除：固件从 my-ImmortalWrt commit `8955399`
@@ -155,6 +159,10 @@ python3 scripts/sync-packages.py
 6. 重新生成 [`SYNCED_SOURCES.md`](SYNCED_SOURCES.md)，记录分支、commit 和覆盖清单。
 
 GitHub Actions 每 6 小时自动同步一次，也可手动运行 `Sync OpenWrt Packages`。
+
+离线回归测试：`python3 -m unittest discover -s tests -v`。测试不会访问网络或发布资源，
+覆盖短发布编号、发布与源码构建编号不同、来源绑定、哈希不一致及失败时保留旧镜像。
+`Check package sync` 在推送时检查，定时同步也会先运行这些测试。
 
 脚本是 fail-closed 的：先克隆成功才替换目录，所以上游临时不可达不会把镜像里的好副本删掉。
 代价是任何一个上游失败都会中止整轮同步——上游确实消失时，请把该条目从 `sources.json`

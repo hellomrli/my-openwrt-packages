@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
 """Mirror kenzok8/openwrt-honk, including the per-release build assets.
 
-The Honk feed is not a plain package tree.  ``honk/Makefile`` and
-``luci-app-honk/Makefile`` only carry a fallback that points at the rolling
-``staging`` release with ``SKIP`` hashes; a real build consumes
-``generated-stage.mk`` / ``generated-doona-stage.mk`` from a ``source-<run>``
-release plus the tarballs those files hash-lock.  Mirroring the branch head
-alone would hand the firmware a package that silently downloads unverified
-bytes from upstream.
+The Honk feed includes ``generated-stage.mk`` / ``generated-doona-stage.mk``
+and hash-locked tarballs from a ``source-<run>`` release.  Newer Makefiles also
+pin these upstream assets directly; older ones fall back to rolling staging
+assets.  In either case the mirror must copy the release inputs, not just the
+package tree, so firmware builds never need upstream downloads.
 
 This module therefore mirrors a *release*, not a branch:
 
-1. resolve the newest ``v<date>-r<run>`` release; its tag records the build
-   run id and ``target_commitish`` points at the wrapper commit it was built
-   from;
+1. resolve the newest ``v<date>-r<number>`` release tag to a wrapper commit
+   and verify its ``release-manifest.json``; the manifest's ``source_tag``
+   identifies the asset build independently of the wrapper release number;
 2. check that commit out and copy the package directories into the mirror;
 3. download the matching ``source-<run>`` assets, verify every digest against
    the generated stage files and re-upload them to a mirror release, so builds
@@ -48,6 +46,7 @@ MIRROR_SLUG = "hellomrli/my-openwrt-packages"
 MIRROR_URL = f"https://github.com/{MIRROR_SLUG}.git"
 PIN_NAME = "honk-source.json"
 WRAPPER_TAG_RE = re.compile(r"^v(?P<date>\d{4}\.\d{2}\.\d{2})-r(?P<run>\d+)$")
+SOURCE_TAG_RE = re.compile(r"^source-\d+$")
 ARCHES = ("x86_64", "aarch64", "armv7")
 # Root directory content required in each asset, keyed by pin asset kind.
 REQUIRED_LAYOUT = {
@@ -126,6 +125,44 @@ def resolve_commit(tag: str) -> str:
     if not re.fullmatch(r"[0-9a-f]{40}", commit):
         raise SyncError(f"Tag {tag} did not resolve to a commit")
     return commit
+
+
+def release_manifest(tag: str, commit: str) -> dict:
+    try:
+        manifest = json.loads(gh(
+            "release", "download", tag, "--repo", UPSTREAM_SLUG,
+            "--pattern", "release-manifest.json", "--output", "-",
+        ))
+    except ValueError as exc:
+        raise SyncError(f"Release {tag} has an invalid release-manifest.json") from exc
+    if not isinstance(manifest, dict):
+        raise SyncError(f"Release {tag} manifest must be an object")
+    source_tag = manifest.get("source_tag")
+    if not isinstance(source_tag, str) or not SOURCE_TAG_RE.fullmatch(source_tag):
+        raise SyncError(f"Release {tag} manifest has an invalid source_tag")
+    if manifest.get("candidate_sha") != commit:
+        raise SyncError(f"Release {tag} manifest does not match the wrapper tag commit")
+    for field in ("core_commit", "doona_commit"):
+        value = manifest.get(field)
+        if not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{40}", value):
+            raise SyncError(f"Release {tag} manifest has an invalid {field}")
+    validate_asset(manifest.get("doona_archive"), manifest.get("doona_archive_sha256"))
+    hashes = manifest.get("core_archives_sha256")
+    if not isinstance(hashes, dict):
+        raise SyncError(f"Release {tag} manifest has no core hash map")
+    for key, value in hashes.items():
+        if key not in {f"HONK_HASH_{arch.upper()}" for arch in ARCHES} or not isinstance(
+            value, str
+        ) or not re.fullmatch(r"[0-9a-f]{64}", value):
+            raise SyncError(f"Release {tag} manifest has an invalid core hash: {key}")
+    return manifest
+
+
+def validate_asset(name: str, digest: str) -> None:
+    if not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*\.tar\.gz", name):
+        raise SyncError(f"Invalid release asset name: {name!r}")
+    if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+        raise SyncError(f"Invalid SHA256 for release asset {name}")
 
 
 def checkout_wrapper(commit: str, destination: Path) -> None:
@@ -218,6 +255,8 @@ def upload_asset(tag: str, path: Path) -> None:
 
 
 def reusable(pin: dict, source_tag: str, commit: str, mirror_tag: str) -> bool:
+    if not isinstance(pin, dict):
+        return False
     if pin.get("source_tag") != source_tag or pin.get("wrapper_commit") != commit:
         return False
     assets = pin.get("assets") or {}
@@ -232,14 +271,13 @@ def sync(source: dict) -> dict:
     path = ROOT / source["path"]
     release = latest_wrapper_release()
     tag = release["tag_name"]
-    match = WRAPPER_TAG_RE.match(tag)
-    if not match:
+    if not WRAPPER_TAG_RE.fullmatch(tag):
         raise SyncError(f"Unexpected wrapper release tag: {tag}")
-    run_id = match.group("run")
-    source_tag = f"source-{run_id}"
-    mirror_tag = f"honk-source-{run_id}"
-    release_url = f"https://github.com/{MIRROR_SLUG}/releases/download/{mirror_tag}"
     commit = resolve_commit(tag)
+    manifest = release_manifest(tag, commit)
+    source_tag = manifest["source_tag"]
+    mirror_tag = f"honk-{source_tag}"
+    release_url = f"https://github.com/{MIRROR_SLUG}/releases/download/{mirror_tag}"
 
     pin_path = path / PIN_NAME
     if pin_path.is_file():
@@ -294,23 +332,36 @@ def sync(source: dict) -> dict:
             raise SyncError("Release provenance has no core commit")
         if core_commit != make_value((staged / "honk/Makefile").read_text(), "CORE_COMMIT"):
             raise SyncError("Release provenance does not match the wrapper CORE_COMMIT")
+        if core_commit != manifest["core_commit"]:
+            raise SyncError("Release provenance does not match the manifest core_commit")
         architectures = core.get("architectures", [])
-        if not architectures or any(arch not in ARCHES for arch in architectures):
+        if not isinstance(architectures, list) or not architectures or any(
+            arch not in ARCHES for arch in architectures
+        ) or len(set(architectures)) != len(architectures):
             raise SyncError(f"Unsupported core architectures: {architectures}")
+        for package, field in (("honk", "honk_version"), ("luci-app-honk", "luci_version")):
+            text = (staged / package / "Makefile").read_text()
+            version = f"{make_value(text, 'PKG_VERSION')}-r{make_value(text, 'PKG_RELEASE')}"
+            if version != manifest.get(field):
+                raise SyncError(f"Release manifest {field} does not match the wrapper")
 
         stage_text = (assets_dir / "generated-stage.mk").read_text()
         doona_stage_text = (assets_dir / "generated-doona-stage.mk").read_text()
         upstream_url = f"https://github.com/{UPSTREAM_SLUG}/releases/download/{source_tag}"
         for text, name in ((stage_text, "generated-stage.mk"), (doona_stage_text, "generated-doona-stage.mk")):
-            if upstream_url not in text:
+            if make_value(text, "PKG_SOURCE_URL").rstrip("/") != upstream_url:
                 raise SyncError(f"{name} does not point at {source_tag}")
-        if make_value(stage_text, "HONK_HASH_X86_64") == "SKIP":
-            raise SyncError("generated-stage.mk carries a SKIP hash")
 
         assets: dict[str, dict] = {}
         for arch in architectures:
             name = make_value(stage_text, f"HONK_ASSET_{arch.upper()}")
             expected = make_value(stage_text, f"HONK_HASH_{arch.upper()}")
+            validate_asset(name, expected)
+            # Some releases reuse core assets and leave this map empty. The
+            # stage digest remains mandatory even when the manifest has none.
+            hashes = manifest["core_archives_sha256"]
+            if hashes and hashes.get(f"HONK_HASH_{arch.upper()}") != expected:
+                raise SyncError(f"Manifest and stage hashes disagree for {arch}")
             destination = assets_dir / name
             download(f"{upstream_url}/{name}", destination)
             actual = sha256_file(destination)
@@ -325,6 +376,9 @@ def sync(source: dict) -> dict:
 
         doona_name = make_value(doona_stage_text, "PKG_SOURCE")
         doona_expected = make_value(doona_stage_text, "PKG_HASH")
+        validate_asset(doona_name, doona_expected)
+        if doona_name != manifest["doona_archive"] or doona_expected != manifest["doona_archive_sha256"]:
+            raise SyncError("Manifest and stage disagree on the Doona archive")
         doona_path = assets_dir / doona_name
         download(f"{upstream_url}/{doona_name}", doona_path)
         doona_actual = sha256_file(doona_path)
