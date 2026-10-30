@@ -30,7 +30,7 @@ const callRestart = rpc.declare({ object: 'honk', method: 'restart', expect: { '
 const callSettings = rpc.declare({
 	object: 'honk',
 	method: 'settings',
-	params: [ 'lan_network', 'listen_port', 'boot_enabled', 'clash_api_enabled', 'clash_api_port', 'clash_api_secret' ],
+	params: [ 'lan_network', 'listen_port', 'clash_api_enabled', 'clash_api_port', 'clash_api_secret' ],
 	expect: { '': {} }
 });
 
@@ -68,6 +68,7 @@ const callRepair = rpc.declare({ object: 'honk', method: 'repair', expect: { '':
 const callBackup = rpc.declare({ object: 'honk', method: 'backup', expect: { '': {} } });
 const callRestore = rpc.declare({ object: 'honk', method: 'restore', expect: { '': {} } });
 const callRestorePrepare = rpc.declare({ object: 'honk', method: 'restore_prepare', expect: { '': {} } });
+const callResetAdmin = rpc.declare({ object: 'honk', method: 'reset_admin', expect: { '': {} } });
 const callReset = rpc.declare({ object: 'honk', method: 'reset', expect: { '': {} } });
 const callJobStatus = rpc.declare({
 	object: 'honk',
@@ -221,7 +222,7 @@ function tokenMessage(token) {
 		import_failed: _('The core could not prepare this import preview.'),
 		share_links_too_large: _('Share links exceed the 16 KiB per request limit.'),
 		share_links_invalid_or_conflicting: _('A share link is invalid or conflicts with an existing node. Review the input and try again.'),
-		subscription_invalid: _('The subscription name or URL is invalid.'),
+		subscription_invalid: _('The subscription could not be added: the name must be 1-64 characters without single quotes, and the URL must be a valid http(s) link.'),
 		subscription_invalid_or_conflicting: _('The subscription is invalid or its name already exists.'),
 		subscription_no_nodes: _('The subscription returned no usable nodes. The configuration was not changed.'),
 		subscription_added: _('Subscription saved with usable nodes.'),
@@ -253,7 +254,7 @@ function tokenMessage(token) {
 		service_stop_unconfirmed_snapshot_retained: _('Could not confirm that Honk stopped. The operation was aborted and the snapshot was kept.'),
 		manual_mode_required: _('Manual mode is active. Restore managed mode before using the subscription tools.'),
 		managed_edit_unavailable: _('Manual mode is active, so this tool cannot edit the configuration. Select Restore managed mode first.'),
-		administrator_exists_reuse_credentials_or_reset_state: _('已经初始化过了，请用原来的账号登录 Doona。忘记密码的处理方式：先停止 Honk，再执行 honk-core admin reset（只删除管理员记录、重新开放首次设置，不动订阅和规则），然后回到本页重新初始化。'),
+		administrator_exists_reuse_credentials_or_reset_state: _('已经初始化过了，请用原来的账号登录 Doona。忘记密码：到「维护 → 重置管理员」清掉管理员记录（不动订阅和规则），再回到本页重新初始化。'),
 		administrator_setup_failed: _('创建 Doona 管理员失败，请到「维护 → 日志」查看核心日志。'),
 		invalid_credentials: _('用户名只能包含字母、数字、下划线、点、连字符（不超过 64 个字符）；密码长度必须是 8 到 128 个字符，可以包含空格。'),
 		disable_service_before_initialization: _('请先停止 Honk 服务再初始化。'),
@@ -471,6 +472,7 @@ return baseclass.extend({
 	backup: callBackup,
 	restore: callRestore,
 	restorePrepare: callRestorePrepare,
+	resetAdmin: callResetAdmin,
 	reset: callReset,
 	logs: callLogs,
 	updateCheck: callUpdateCheck,

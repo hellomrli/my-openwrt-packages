@@ -1,12 +1,12 @@
 {
   "format": 1,
   "upstream": "https://github.com/kenzok8/openwrt-honk.git",
-  "upstream_release": "v2026.10.29-r40827925214",
-  "source_tag": "source-40827925214",
-  "wrapper_commit": "c11cd6544073e99f000e0bd3a5bb2bbb6d40543b",
+  "upstream_release": "v2026.10.30-r41015660706",
+  "source_tag": "source-41012758310",
+  "wrapper_commit": "756d514e0f4cd37647082e61058d5b382ba88dc0",
   "mirror_repository": "https://github.com/hellomrli/my-openwrt-packages.git",
-  "mirror_release": "honk-source-40827925214",
-  "release_url": "https://github.com/hellomrli/my-openwrt-packages/releases/download/honk-source-40827925214",
+  "mirror_release": "honk-source-41012758310",
+  "release_url": "https://github.com/hellomrli/my-openwrt-packages/releases/download/honk-source-41012758310",
   "core": {
     "repository": "https://github.com/Glassyiris/honk.git",
     "commit": "aebc0d78d567cac1cd74ee9c56674857c5441451",
@@ -35,9 +35,9 @@
       "size": 12390559
     },
     "doona": {
-      "name": "doona-21a6d7a0-b26231019769.tar.gz",
-      "sha256": "b2623101976979b30c7e9b23037215bf231357927738a77136647acf85a6bc3a",
-      "size": 1305810
+      "name": "doona-4493e8c3-cc20a8667745.tar.gz",
+      "sha256": "cc20a8667745965986f36531e0658033fccc6a3114183257573bc2b6677e2c5c",
+      "size": 1304991
     }
   }
 }
