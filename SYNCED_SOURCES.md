@@ -1,13 +1,13 @@
 # Synced Sources
 
-Last sync: `2026-10-31 05:55:23 UTC`
+Last sync: `2026-10-31 12:45:54 UTC`
 
 | Package | Path | Branch | Commit | Upstream |
 |---------|------|--------|--------|----------|
 | luci-app-lucky | `luci-app-lucky` | `main` | `91b506627c1d` | https://github.com/gdy666/luci-app-lucky.git |
 | luci-app-watchdog | `luci-app-watchdog` | `main` | `4c0ad625c738` | https://github.com/sirpdboy/luci-app-watchdog.git |
 | OpenClash | `openclash` | `master` | `e553e82e01c6` | https://github.com/vernesong/OpenClash.git |
-| openwrt-daede | `openwrt-daede` | `main` | `98ffb5b14038` | https://github.com/kenzok8/openwrt-daede.git |
+| openwrt-daede | `openwrt-daede` | `main` | `6ac53cb7336d` | https://github.com/kenzok8/openwrt-daede.git |
 | luci-app-adguardhome | `luci-app-adguardhome` | `master` | `37fdf502b993` | https://github.com/rufengsuixing/luci-app-adguardhome.git |
 | luci-app-mosdns | `luci-app-mosdns` | `v5` | `dbdd91ab8ac8` | https://github.com/sbwml/luci-app-mosdns.git |
 | openwrt-passwall | `openwrt-passwall` | `main` | `c873b70eee09` | https://github.com/Openwrt-Passwall/openwrt-passwall.git |
