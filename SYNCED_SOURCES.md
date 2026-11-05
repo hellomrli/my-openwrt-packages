@@ -1,6 +1,6 @@
 # Synced Sources
 
-Last sync: `2026-11-04 19:52:48 UTC`
+Last sync: `2026-11-05 06:59:17 UTC`
 
 | Package | Path | Branch | Commit | Upstream |
 |---------|------|--------|--------|----------|
@@ -15,7 +15,7 @@ Last sync: `2026-11-04 19:52:48 UTC`
 | luci-app-vlmcsd | `luci-app-vlmcsd` | `master` | `530a6ee0f075` | https://github.com/mchome/luci-app-vlmcsd.git |
 | luci-app-smartdns | `luci-app-smartdns` | `master` | `8f0c70281189` | https://github.com/pymumu/luci-app-smartdns.git |
 | golang | `golang` | `27.x` | `cd8953c31e0f` | https://github.com/sbwml/packages_lang_golang.git |
-| openwrt-honk | `openwrt-honk` | `v2026.11.03-r41604962306` | `036d31fc9d0c` | https://github.com/kenzok8/openwrt-honk.git |
+| openwrt-honk | `openwrt-honk` | `v2026.11.05-r41948994746` | `3f80293dabf1` | https://github.com/kenzok8/openwrt-honk.git |
 
 Overridden after sync (see `overrides/README.md`):
 

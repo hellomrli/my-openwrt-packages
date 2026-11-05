@@ -1,7 +1,7 @@
 {
   "core": {
     "repository": "https://github.com/daeuniverse/honk.git",
-    "commit": "77176ff8e8cc2b75385a7030dc376536c382574a",
+    "commit": "88d470c662e0ee7a3de3e67afc6129f67e66c1bf",
     "version": "0.1.0",
     "features": "clash-api,ebpf,rprx,native-api",
     "architectures": ["x86_64", "aarch64", "armv7"]
