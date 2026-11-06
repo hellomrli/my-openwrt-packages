@@ -1,21 +1,21 @@
 # Synced Sources
 
-Last sync: `2026-11-05 20:04:50 UTC`
+Last sync: `2026-11-06 06:58:44 UTC`
 
 | Package | Path | Branch | Commit | Upstream |
 |---------|------|--------|--------|----------|
 | luci-app-lucky | `luci-app-lucky` | `main` | `b07f65c28bb5` | https://github.com/gdy666/luci-app-lucky.git |
 | luci-app-watchdog | `luci-app-watchdog` | `main` | `4c0ad625c738` | https://github.com/sirpdboy/luci-app-watchdog.git |
 | OpenClash | `openclash` | `master` | `e553e82e01c6` | https://github.com/vernesong/OpenClash.git |
-| openwrt-daede | `openwrt-daede` | `main` | `1eedcafd1cd4` | https://github.com/kenzok8/openwrt-daede.git |
+| openwrt-daede | `openwrt-daede` | `main` | `379041fc10c8` | https://github.com/kenzok8/openwrt-daede.git |
 | luci-app-adguardhome | `luci-app-adguardhome` | `master` | `37fdf502b993` | https://github.com/rufengsuixing/luci-app-adguardhome.git |
 | luci-app-mosdns | `luci-app-mosdns` | `v5` | `dbdd91ab8ac8` | https://github.com/sbwml/luci-app-mosdns.git |
-| openwrt-passwall | `openwrt-passwall` | `main` | `f6286d8a495d` | https://github.com/Openwrt-Passwall/openwrt-passwall.git |
-| openwrt-passwall2 | `openwrt-passwall2` | `main` | `3247e147669b` | https://github.com/Openwrt-Passwall/openwrt-passwall2.git |
+| openwrt-passwall | `openwrt-passwall` | `main` | `9815bf90e921` | https://github.com/Openwrt-Passwall/openwrt-passwall.git |
+| openwrt-passwall2 | `openwrt-passwall2` | `main` | `c5894c4e0b5c` | https://github.com/Openwrt-Passwall/openwrt-passwall2.git |
 | luci-app-vlmcsd | `luci-app-vlmcsd` | `master` | `530a6ee0f075` | https://github.com/mchome/luci-app-vlmcsd.git |
 | luci-app-smartdns | `luci-app-smartdns` | `master` | `8f0c70281189` | https://github.com/pymumu/luci-app-smartdns.git |
 | golang | `golang` | `27.x` | `cd8953c31e0f` | https://github.com/sbwml/packages_lang_golang.git |
-| openwrt-honk | `openwrt-honk` | `v2026.11.06-r1` | `67745c3a9912` | https://github.com/kenzok8/openwrt-honk.git |
+| openwrt-honk | `openwrt-honk` | `v2026.11.06-r2` | `33e7daaab080` | https://github.com/kenzok8/openwrt-honk.git |
 
 Overridden after sync (see `overrides/README.md`):
 
