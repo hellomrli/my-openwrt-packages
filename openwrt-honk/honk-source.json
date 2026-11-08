@@ -1,9 +1,9 @@
 {
   "format": 1,
   "upstream": "https://github.com/kenzok8/openwrt-honk.git",
-  "upstream_release": "v2026.11.08-r2",
+  "upstream_release": "v2026.11.08-r42491861714",
   "source_tag": "source-41792584995",
-  "wrapper_commit": "e9f78511abd084bf2010d2dd8b72b1784a720271",
+  "wrapper_commit": "2df7440a7493d62ab51174320dad5244f86128db",
   "mirror_repository": "https://github.com/hellomrli/my-openwrt-packages.git",
   "mirror_release": "honk-source-41792584995",
   "release_url": "https://github.com/hellomrli/my-openwrt-packages/releases/download/honk-source-41792584995",
