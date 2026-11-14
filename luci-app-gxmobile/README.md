@@ -3,7 +3,9 @@
 广西移动 IPTV 扫描管理界面，配套后端为相邻的 [`gxmobile-scan`](../gxmobile-scan/)。
 当前版本 **1.2.0-r2**，适用于 x86_64 OpenWrt / ImmortalWrt，使用现代 LuCI JavaScript 与 rpcd ucode。
 
-## 功能
+[仓库文档](../docs/index.md) · [后端说明](../gxmobile-scan/README.md)
+
+## 扫描并导出频道
 
 - 手动快速扫描、完整 CID 范围扫描和扫描状态查看。
 - 每日或每周定时扫描，统一管理 cron，避免重复任务。
@@ -14,7 +16,7 @@
 此组件不提供运营商接入或组播代理服务。扫描数据保存在 `/etc/gxmobile`，配置为
 `/etc/config/gxmobile`。发布的播放列表位于 `/www/gxmobile`，可由局域网 Web 服务访问。
 
-## 编译
+## 从源码构建并安装
 
 在已经准备好官方 `packages` 和 `luci` feeds 的 OpenWrt / ImmortalWrt 源码根目录执行：
 

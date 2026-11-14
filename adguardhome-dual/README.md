@@ -1,20 +1,30 @@
 # adguardhome-dual
 
-Dual AdGuardHome runtime package for the `dnsmasq + daed + dual ADH` router layout.
+This package provides two AdGuardHome instances for an x86_64 OpenWrt router using separate direct and proxy DNS backends.
 
-Installed services:
+[Repository documentation](../docs/index.md)
 
-- `adh-direct`: DNS `127.0.0.1:50530`, Web `192.168.50.1:50080`
-- `adh-proxy`: DNS `127.0.0.1:50531`, Web `192.168.50.1:50081`
+## Choose the deployment model
 
-The package intentionally does **not** depend on `luci-app-adguardhome`, because a single LuCI app cannot manage this two-instance layout cleanly.
+Current my-ImmortalWrt master uses the official `adguardhome` package plus an overlay for the two instances. It does not install this package. Avoid mixing both models, which define the same services and paths.
 
-Runtime files preserved by the firmware sysupgrade list:
+This package's templates expose Web UI on `192.168.50.1` without a committed login hash. Configure authentication and access before enabling it on a shared network. The current firmware overlay starts unauthenticated Web UI on loopback instead.
 
-- `/etc/AdGuardHome-direct.yaml`
-- `/etc/AdGuardHome-proxy.yaml`
-- `/usr/bin/AdGuardHome`
-- `/etc/init.d/adh-direct`
-- `/etc/init.d/adh-proxy`
+## Inspect the services
 
-The default YAML templates keep ports and DNS routing behavior from the current router, but do not commit the router's existing web login password hash.
+| Service | DNS | Web UI |
+|---|---|---|
+| `adh-direct` | `127.0.0.1:50530` | `192.168.50.1:50080` |
+| `adh-proxy` | `127.0.0.1:50531` | `192.168.50.1:50081` |
+
+The package avoids `luci-app-adguardhome`, whose single-instance management does not match this layout. It installs its own runtime and service wrappers; inspect the [Makefile](Makefile) and `files/` before choosing it. From the repository root:
+
+```bash
+sed -n '1,120p' adguardhome-dual/Makefile
+```
+
+## Preserve configuration
+
+The firmware's upgrade list must include both `/etc/AdGuardHome-direct.yaml` and `/etc/AdGuardHome-proxy.yaml`, plus any independently maintained runtime and service files. The former deployment also preserved `/usr/bin/AdGuardHome` and both `/etc/init.d/adh-*` scripts.
+
+A package README cannot add those paths to an already running firmware's backup. Generate and verify an external backup before changing deployment models.

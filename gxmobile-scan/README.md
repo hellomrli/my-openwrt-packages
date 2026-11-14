@@ -2,7 +2,11 @@
 
 Guangxi Mobile IPTV scanner for the x86_64 OpenWrt/ImmortalWrt IPTV profile.
 
-The original Go source was recovered from `/home/lain/codex/gxmobile-scan`.
+[LuCI setup and package build](../luci-app-gxmobile/README.md) · [Repository docs](../docs/index.md)
+
+## Source and platform
+
+The original Go source was recovered from the maintainer’s local archive.
 Its `releases/prebuilt/gxmobile-scan-linux` binary matches the router's
 `gxmobile-scan` 1.1.0-r2 byte-for-byte. The installed package declares MIT.
 The original source and router files are archived separately; this directory
@@ -18,12 +22,18 @@ The backend is Linux-only and currently packaged for x86_64. CID values exceed
 signed 32-bit integers. Standalone Windows builds from the original utility are
 outside the scope of this OpenWrt package.
 
+## Build and verify
+
+From this component directory:
+
 ```sh
 cd src
 go test -race ./...
 go vet ./...
 CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' .
 ```
+
+## Runtime paths
 
 Configuration: `/etc/config/gxmobile`. Persistent data: `/etc/gxmobile`.
 Public LAN playlist copy: `/www/gxmobile`. Fixed API: `127.0.0.1:8081`.

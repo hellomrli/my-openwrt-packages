@@ -1,28 +1,25 @@
-# overrides
+# 覆盖自动同步的文件
 
-同步之后覆盖回仓库的文件。目录结构与仓库根目录一致，例如
-`overrides/luci-app-lucky/lucky/Makefile` 会覆盖 `luci-app-lucky/lucky/Makefile`。
+本目录保存必须偏离上游的文件，使下一轮同步仍能保留本地包定义。
 
-`scripts/sync-packages.py` 先整仓同步 `sources.json` 里的上游，再按本目录逐文件覆盖，
-覆盖结果会写进 [`SYNCED_SOURCES.md`](../SYNCED_SOURCES.md)。覆盖路径必须落在本次同步
-出来的某个包目录内，写错路径会直接报错退出，不会悄悄多出一个上游没有的目录。
+[维护指南](../docs/maintenance.md) · [同步记录](../SYNCED_SOURCES.md)
 
-## 什么时候需要它
+## 放置覆盖文件
 
-上游仓库还在同步、但其中某个包必须长期偏离上游时。放在这里的文件必须写明为什么不能
-跟随上游，否则下一个人会以为是忘了同步。
+目录结构与仓库根一致。例如 `overrides/luci-app-lucky/lucky/Makefile` 覆盖 `luci-app-lucky/lucky/Makefile`。同步后逐文件覆盖，结果记入来源表。
 
-## 当前内容
+在仓库根目录核对现有覆盖文件：
 
-| 文件 | 原因 |
-|------|------|
-| `luci-app-lucky/lucky/Makefile` | Lucky 从 3.x 起只在官方文件服务 <https://release.66666.host/> 发布，GitHub 的 `gdy666/lucky` 停在 v2.27.2 且不再有 3.x 资产；上游 `gdy666/luci-app-lucky` 里那份 Makefile 仍指向 GitHub release，同步回来会把核心包退回 2.27.2。 |
+```bash
+sed -n '1,120p' overrides/luci-app-lucky/lucky/Makefile
+```
 
-`luci-app-lucky/luci-app-lucky/`（LuCI 界面）与 `lucky/files/`（init 脚本、`lucky-call`
-辅助程序）继续跟随上游同步：上游界面包已经是 3.0.0，与官方站点发布的
-`luci-app-lucky-3.0.0-r1.apk` 同版本，`lucky-call` 用到的 `-info` / `-baseConfInfo` /
-`-setconf` 接口在 3.1.4 二进制上实测可用。
+覆盖路径须属于本轮同步包目录，错误路径会报错。新增覆盖时说明原因；不要直接修改生成副本，也不要在这里加入运行账户、订阅或设备数据库。
 
-版本号、下载地址与逐架构 sha256 不靠手工维护：固件仓库 `hellomrli/my-ImmortalWrt` 的
-`.github/scripts/pin-lucky-source.py` 会在每次构建前按官方 `checksums.txt` 重写它们，
-这里保存的是最近一次已知可用的状态，供镜像单独使用时兜底。
+## Lucky 核心为何固定
+
+Lucky 3.x 的核心二进制和 APK 从 [官方文件服务](https://release.66666.host/) 发布，GitHub 的 `gdy666/lucky` Release 停在 v2.27.2。沿用旧上游 Makefile 会回退核心版本，因此覆盖核心 Makefile 中的版本、下载地址和逐架构摘要。
+
+LuCI、init 和 `lucky-call` 仍跟随上游。此前在 3.1.4 上验证过 `-info`、`-baseConfInfo` 和 `-setconf`，这是一份历史验证，后续版本需重新核对。
+
+my-ImmortalWrt 的 `.github/scripts/pin-lucky-source.py` 在构建前按官方 `checksums.txt` 刷新核心版本与摘要；这里提供最近一次已知可用的固定状态。
