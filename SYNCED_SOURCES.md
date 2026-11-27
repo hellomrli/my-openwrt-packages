@@ -1,6 +1,6 @@
 # Synced Sources
 
-Last sync: `2026-11-27 12:53:31 UTC`
+Last sync: `2026-11-27 21:26:46 UTC`
 
 | Package | Path | Branch | Commit | Upstream |
 |---------|------|--------|--------|----------|
@@ -10,14 +10,14 @@ Last sync: `2026-11-27 12:53:31 UTC`
 | openwrt-daede | `openwrt-daede` | `main` | `7e181da32bf16acd5d8d3939bcae54730d772310` | https://github.com/kenzok8/openwrt-daede.git |
 | luci-app-adguardhome | `luci-app-adguardhome` | `master` | `37fdf502b99328b37c9ef4c4387f069f67253f85` | https://github.com/rufengsuixing/luci-app-adguardhome.git |
 | luci-app-mosdns | `luci-app-mosdns` | `v5` | `a8a6caffe04167dbb17407a63463eb4ce7243873` | https://github.com/sbwml/luci-app-mosdns.git |
-| openwrt-passwall | `openwrt-passwall` | `main` | `8f501e6596d347abd868a87065e33f81034defd7` | https://github.com/Openwrt-Passwall/openwrt-passwall.git |
-| openwrt-passwall2 | `openwrt-passwall2` | `main` | `c8c1c67d6f12ea3bf3d05a3b186dffd538955502` | https://github.com/Openwrt-Passwall/openwrt-passwall2.git |
+| openwrt-passwall | `openwrt-passwall` | `main` | `617506b17d020f39e8b55c811a0ae11cb97e1b35` | https://github.com/Openwrt-Passwall/openwrt-passwall.git |
+| openwrt-passwall2 | `openwrt-passwall2` | `main` | `47d9e2846ae5721525f2e36486469bc76d7a904f` | https://github.com/Openwrt-Passwall/openwrt-passwall2.git |
 | luci-app-vlmcsd | `luci-app-vlmcsd` | `master` | `530a6ee0f07522c9540dc09c7559f0486c4c4288` | https://github.com/mchome/luci-app-vlmcsd.git |
 | luci-app-smartdns | `luci-app-smartdns` | `master` | `8f0c70281189fbdc1cd102bc134c1f6cac3a4640` | https://github.com/pymumu/luci-app-smartdns.git |
 | golang | `golang` | `27.x` | `a7942fbbc78a482c32b71bfee659d2327570ea33` | https://github.com/sbwml/packages_lang_golang.git |
 | openwrt-honk | `openwrt-honk` | `v2026.11.26` | `2bfaed128096695dab1b4cb8bd2f700e0e9912e8` | https://github.com/kenzok8/openwrt-honk.git |
-| gxmobile-scan | `gxmobile-scan` | `main` | `4e530897983c61c198b095de7465c5e2fc51b2c2` | https://github.com/hellomrli/my-ImmortalWrt.git |
-| luci-app-gxmobile | `luci-app-gxmobile` | `main` | `4e530897983c61c198b095de7465c5e2fc51b2c2` | https://github.com/hellomrli/my-ImmortalWrt.git |
+| gxmobile-scan | `gxmobile-scan` | `main` | `81088f8b8e1ca2f226c88c57ee390461e6032e1d` | https://github.com/hellomrli/my-ImmortalWrt.git |
+| luci-app-gxmobile | `luci-app-gxmobile` | `main` | `81088f8b8e1ca2f226c88c57ee390461e6032e1d` | https://github.com/hellomrli/my-ImmortalWrt.git |
 
 Overridden after sync (see `overrides/README.md`):
 
