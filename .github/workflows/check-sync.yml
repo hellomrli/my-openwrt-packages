@@ -4,12 +4,16 @@ on:
   workflow_dispatch:
   push:
     paths:
+      - 'sources.json'
+      - 'overrides/**'
       - 'scripts/**'
       - 'tests/**'
       - '.github/workflows/check-sync.yml'
       - '.github/workflows/sync-packages.yml'
   pull_request:
     paths:
+      - 'sources.json'
+      - 'overrides/**'
       - 'scripts/**'
       - 'tests/**'
       - '.github/workflows/check-sync.yml'

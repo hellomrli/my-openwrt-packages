@@ -72,5 +72,15 @@
     "repo": "https://github.com/kenzok8/openwrt-honk.git",
     "driver": "honk-release",
     "description": "Honk transparent proxy core, Doona UI and luci-app-honk, mirrored together with its hash-locked release assets"
+  },
+  {
+    "name": "gxmobile",
+    "repo": "https://github.com/hellomrli/my-ImmortalWrt.git",
+    "branch": "main",
+    "exports": {
+      "gxmobile-scan": "packages/gxmobile-scan",
+      "luci-app-gxmobile": "packages/luci-app-gxmobile"
+    },
+    "description": "Export the IPTV scanner and LuCI app together at one firmware commit"
   }
 ]

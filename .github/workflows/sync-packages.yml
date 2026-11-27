@@ -25,6 +25,7 @@ jobs:
         run: python3 -m unittest discover -s tests -v
 
       - name: Sync upstream packages
+        id: sync
         env:
           # The Honk source is mirrored release-by-release: its assets are
           # re-uploaded to a release of this repository so firmware builds
@@ -34,8 +35,12 @@ jobs:
 
       - name: Commit changes
         id: commit
+        if: ${{ !cancelled() && steps.sync.outputs.paths != '' }}
+        env:
+          SYNC_PATHS: ${{ steps.sync.outputs.paths }}
         run: |
-          git add .
+          read -r -a paths <<< "$SYNC_PATHS"
+          git add -- SYNCED_SOURCES.md "${paths[@]}"
           if git diff --cached --quiet; then
             echo "No package updates."
             echo "changed=false" >> "$GITHUB_OUTPUT"

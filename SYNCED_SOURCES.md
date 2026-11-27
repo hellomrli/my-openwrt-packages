@@ -1,6 +1,6 @@
 # Synced Sources
 
-Last sync: `2026-11-26 08:35:24 UTC`
+Last sync: `2026-11-27 11:14:05 UTC`
 
 | Package | Path | Branch | Commit | Upstream |
 |---------|------|--------|--------|----------|
@@ -16,6 +16,8 @@ Last sync: `2026-11-26 08:35:24 UTC`
 | luci-app-smartdns | `luci-app-smartdns` | `master` | `8f0c70281189` | https://github.com/pymumu/luci-app-smartdns.git |
 | golang | `golang` | `27.x` | `a7942fbbc78a` | https://github.com/sbwml/packages_lang_golang.git |
 | openwrt-honk | `openwrt-honk` | `v2026.11.12-r43231019397` | `34d0590178ca` | https://github.com/kenzok8/openwrt-honk.git |
+| gxmobile-scan | `gxmobile-scan` | `main` | `8973543ed443375b22fece7cb4f359fa02e6c31a` | https://github.com/hellomrli/my-ImmortalWrt.git |
+| luci-app-gxmobile | `luci-app-gxmobile` | `main` | `8973543ed443375b22fece7cb4f359fa02e6c31a` | https://github.com/hellomrli/my-ImmortalWrt.git |
 
 Overridden after sync (see `overrides/README.md`):
 

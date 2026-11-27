@@ -1,9 +1,9 @@
 # luci-app-gxmobile
 
 广西移动 IPTV 扫描管理界面，配套后端为相邻的 [`gxmobile-scan`](../gxmobile-scan/)。
-当前版本 **1.2.0-r2**，适用于 x86_64 OpenWrt / ImmortalWrt，使用现代 LuCI JavaScript 与 rpcd ucode。
+适用于 x86_64 OpenWrt / ImmortalWrt，使用现代 LuCI JavaScript 与 rpcd ucode。版本以配套 Makefile 为准。
 
-[仓库文档](../docs/index.md) · [后端说明](../gxmobile-scan/README.md)
+[仓库文档](index.md) · [后端说明](../gxmobile-scan/README.md)
 
 ## 扫描并导出频道
 
@@ -42,9 +42,6 @@ make package/luci-app-gxmobile/compile V=s
 
 ## 来源与维护
 
-来自 [my-ImmortalWrt commit 703242e](https://github.com/hellomrli/my-ImmortalWrt/commit/703242e55e1af88cee5baf81a3b8f5beb84dc015)
-中的 `packages/gxmobile-scan` 和 `packages/luci-app-gxmobile`，功能源码保持一致。
-这些目录不加入自动镜像清单 `sources.json`，后续更新需要显式同步维护。
-
-该版本已在目标路由器完成安装、LuCI 操作、定时保存与快速扫描验证。
-恢复过程、功能限制与升级说明见 [IPTV 文档](https://github.com/hellomrli/my-ImmortalWrt/blob/703242e55e1af88cee5baf81a3b8f5beb84dc015/docs/iptv.md)。
+两包由自动任务从 [my-ImmortalWrt](https://github.com/hellomrli/my-ImmortalWrt) 的同一个提交导出；
+请在固件仓库的 `packages/` 修改源码，不单独编辑镜像副本。实际提交见 [来源表](../SYNCED_SOURCES.md)。
+功能限制与升级说明见 [IPTV 文档](https://github.com/hellomrli/my-ImmortalWrt/blob/main/docs/iptv.md)。

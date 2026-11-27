@@ -21,21 +21,21 @@ python3 scripts/sync-packages.py
 
 ## 理解同步结果和失败
 
-普通源克隆成功后才替换其目标目录，忽略 `.git` 与 `.github` 元数据，最后应用 overrides 并生成来源表。
+普通源先在临时目录克隆、检查包目录并应用 overrides，忽略 `.git` 与 `.github` 元数据。只有准备完整的包才会替换镜像。
 
-每个包独立更新；整轮不是跨目录事务。某个上游失败会终止这一轮，前面已同步的目录可能已经变化，自动任务不会提交失败结果。上游长期消失时移除对应 `sources.json` 条目，使其他包继续更新，保留最后副本按维护需要决定。
+某个源失败时，该源的文件和来源记录保持不变；其他成功的源仍可提交。任务最终保持失败状态，日志列出故障源。若全部失败或来源表没有成功写完，不提交任何内容。来源记录不变时不会只更新时间戳。
 
-Honk 同步读取最新正式发布 manifest，校验 `candidate_sha` 与 wrapper 标签实际 commit，再按 `source_tag` 取得 stage、provenance 和归档。发布标签的 `r` 后缀不一定是源码构建号，不要据此猜下载地址。
+Honk 通过 GitHub `releases/latest` 选择正式发布，支持 `v日期`、`v日期.序号` 和可选的 `-r数字` 后缀。脚本校验 manifest 的 `candidate_sha` 与 wrapper 标签实际 commit，再按 `source_tag` 取得 stage、provenance 和归档。不从标签猜测资源地址，也不因最新发布不兼容而静默退回旧版。
 
-包版本、核心 commit、manifest 和 stage 中的摘要都须一致；缺失、不匹配或 `SKIP` 会中止，不回退滚动 staging。通过后镜像到 `honk-source-源码构建号` Release 并改写 URL。
+包版本、核心 commit、manifest 和 stage 中的摘要都须一致；缺失、不匹配或 `SKIP` 会中止该源，不回退滚动 staging。只补传已校验的缺失资源，不覆盖现有同名资源。
 
 ## 新增或移除源
 
 1. 在 `sources.json` 写 `name`、`path`、`repo`、description，可选 branch。
-2. 只有配套发布资源需要特殊处理时才使用同步 driver；当前 Honk 使用 `honk-release`。
+2. 配套发布资源可使用 Honk 的 `honk-release` driver。成组导出时用 `exports` 替代 `path`，从一次克隆按「镜像目录：上游子目录」映射复制；其中一个包缺失，整组保留原版。
 3. 同步后检查目录及来源表；固件使用还需修改该固件目标的清单和 `.config`。
 
-本地维护包不要加入同步清单。移除源时，是否删除现有目录需明确执行；脚本不会自动清理清单外的目录。
+本地维护包不要加入同步清单。仅更新 IPTV 扫描包可运行 `python3 scripts/sync-packages.py --only gxmobile`，不会触发 Honk 发布。移除源时，脚本不会自动删除清单外的目录。
 
 ## 长期覆盖上游文件
 

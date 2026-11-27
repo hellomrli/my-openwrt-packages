@@ -75,7 +75,6 @@ class HonkSyncTests(unittest.TestCase):
         self.set_source_tag(self.manifest["source_tag"])
         self.downloads = []
         self.patch("ROOT", self.root)
-        self.patch("latest_wrapper_release", mock.Mock(return_value=self.release))
         self.patch("resolve_commit", mock.Mock(return_value=self.COMMIT))
         self.patch("gh", mock.Mock(side_effect=self.gh))
         self.checkout = self.patch("checkout_wrapper", mock.Mock(side_effect=self.checkout_wrapper))
@@ -98,6 +97,8 @@ class HonkSyncTests(unittest.TestCase):
             self.inputs[name] = (f"PKG_SOURCE_URL:={self.upstream_url}/\n" + "\n".join(lines) + "\n").encode()
 
     def gh(self, *args):
+        if args == ("api", f"repos/{honk_sync.UPSTREAM_SLUG}/releases/latest"):
+            return json.dumps(self.release)
         self.assertEqual(args, (
             "release", "download", self.release["tag_name"], "--repo", honk_sync.UPSTREAM_SLUG,
             "--pattern", "release-manifest.json", "--output", "-",
@@ -153,6 +154,23 @@ class HonkSyncTests(unittest.TestCase):
         pin = self.sync()
         self.assertEqual(pin["mirror_release"], "honk-source-40914867358")
 
+    def test_latest_release_supports_current_wrapper_tags(self):
+        for tag in ("v2026.11.26", "v2026.11.24.2", "v2026.11.18.1-r3"):
+            with self.subTest(tag=tag):
+                self.release["tag_name"] = tag
+                pin = self.sync()
+                self.assertEqual(pin["upstream_release"], tag)
+                self.assertEqual(pin["source_tag"], self.manifest["source_tag"])
+
+    def test_unexpected_latest_is_not_replaced_by_an_older_release(self):
+        for release in ({"tag_name": "source-45789344596"}, {"tag_name": "v2026.11.26-rc1"},
+                        {"tag_name": "v2026.11.26", "draft": True},
+                        {"tag_name": "v2026.11.26", "prerelease": True}):
+            with self.subTest(release=release):
+                self.release = release
+                self.assert_rejected()
+        self.checkout.assert_not_called()
+
     def test_repeated_wrapper_number_does_not_overwrite_previous_source_release(self):
         self.release["tag_name"] = "v2026.10.29-r7"
         self.set_source_tag("source-40914867358")
@@ -168,7 +186,7 @@ class HonkSyncTests(unittest.TestCase):
 
     def test_complete_mirror_is_reused(self):
         pin = self.sync()
-        self.remote_assets.return_value = {value["name"]: value["size"] for value in pin["assets"].values()}
+        self.remote_assets.return_value = {asset["name"]: f"sha256:{asset['sha256']}" for asset in pin["assets"].values()}
         self.checkout.reset_mock()
         self.uploads.reset_mock()
         self.downloads.clear()
@@ -183,7 +201,31 @@ class HonkSyncTests(unittest.TestCase):
         with self.assertRaisesRegex(honk_sync.SyncError, "wrapper tag commit"):
             self.sync()
 
+    def test_source_release_assets_cannot_be_overwritten(self):
+        pin = self.sync()
+        self.uploads.reset_mock()
+        self.remote_assets.return_value = {pin["assets"]["doona"]["name"]: "sha256:" + "0" * 64}
+        with self.assertRaisesRegex(honk_sync.SyncError, "Refusing to overwrite"):
+            self.sync()
+        self.uploads.assert_not_called()
+        self.assertEqual(json.loads((self.destination / honk_sync.PIN_NAME).read_text()), pin)
+
+    def test_incomplete_cached_pin_is_rebuilt(self):
+        pin = self.sync()
+        del pin["assets"]["doona"]
+        (self.destination / honk_sync.PIN_NAME).write_text(json.dumps(pin))
+        self.remote_assets.return_value = {asset["name"]: f"sha256:{asset['sha256']}" for asset in pin["assets"].values()}
+        self.assertIn("doona", self.sync()["assets"])
+
+    def test_only_http_404_means_missing_release(self):
+        with mock.patch.object(honk_sync, "api_json", side_effect=honk_sync.SyncError("Not Found (HTTP 404)")):
+            self.assertIsNone(honk_sync.find_mirror_release("tag"))
+        with mock.patch.object(honk_sync, "api_json", side_effect=honk_sync.SyncError("rate limit (HTTP 403)")), \
+                self.assertRaisesRegex(honk_sync.SyncError, "403"):
+            honk_sync.find_mirror_release("tag")
+
     def test_invalid_or_missing_manifest_fails_without_guessing_a_source(self):
+        self.patch("api_json", mock.Mock(return_value=self.release))
         for raw in ("not json", "null", "[]"):
             with self.subTest(raw=raw), mock.patch.object(honk_sync, "gh", return_value=raw):
                 self.assert_rejected()

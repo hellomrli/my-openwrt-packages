@@ -9,7 +9,7 @@ package tree, so firmware builds never need upstream downloads.
 
 This module therefore mirrors a *release*, not a branch:
 
-1. resolve the newest ``v<date>-r<number>`` release tag to a wrapper commit
+1. resolve GitHub's latest stable wrapper release to its tagged commit
    and verify its ``release-manifest.json``; the manifest's ``source_tag``
    identifies the asset build independently of the wrapper release number;
 2. check that commit out and copy the package directories into the mirror;
@@ -45,7 +45,7 @@ UPSTREAM_URL = f"https://github.com/{UPSTREAM_SLUG}.git"
 MIRROR_SLUG = "hellomrli/my-openwrt-packages"
 MIRROR_URL = f"https://github.com/{MIRROR_SLUG}.git"
 PIN_NAME = "honk-source.json"
-WRAPPER_TAG_RE = re.compile(r"^v(?P<date>\d{4}\.\d{2}\.\d{2})-r(?P<run>\d+)$")
+WRAPPER_TAG_RE = re.compile(r"v[0-9]{4}\.[0-9]{2}\.[0-9]{2}(?:\.[0-9]+)?(?:-r[0-9]+)?")
 SOURCE_TAG_RE = re.compile(r"^source-\d+$")
 ARCHES = ("x86_64", "aarch64", "armv7")
 # Root directory content required in each asset, keyed by pin asset kind.
@@ -105,13 +105,13 @@ def make_value(text: str, key: str) -> str:
 
 
 def latest_wrapper_release() -> dict:
-    releases = json.loads(gh("api", f"repos/{UPSTREAM_SLUG}/releases?per_page=20"))
-    for release in releases:
-        if release.get("draft") or release.get("prerelease"):
-            continue
-        if WRAPPER_TAG_RE.match(release.get("tag_name", "")):
-            return release
-    raise SyncError(f"{UPSTREAM_SLUG} has no v<date>-r<run> release")
+    release = api_json(f"repos/{UPSTREAM_SLUG}/releases/latest")
+    tag = release.get("tag_name") if isinstance(release, dict) else None
+    if not isinstance(tag, str) or not WRAPPER_TAG_RE.fullmatch(tag):
+        raise SyncError(f"Unexpected latest wrapper release tag: {tag!r}")
+    if release.get("draft") or release.get("prerelease"):
+        raise SyncError(f"Wrapper release {tag} is not a stable release")
+    return release
 
 
 def resolve_commit(tag: str) -> str:
@@ -218,20 +218,23 @@ def asset_key(kind: str, arch: str | None = None) -> str:
     return f"{kind}_{arch}" if arch else kind
 
 
-def mirror_release_assets(tag: str) -> dict[str, int]:
+def find_mirror_release(tag: str) -> dict | None:
     try:
-        release = api_json(f"repos/{MIRROR_SLUG}/releases/tags/{tag}")
-    except SyncError:
-        return {}
-    return {asset["name"]: int(asset.get("size", 0)) for asset in release.get("assets", [])}
+        return api_json(f"repos/{MIRROR_SLUG}/releases/tags/{tag}")
+    except SyncError as exc:
+        if "HTTP 404" not in str(exc):
+            raise
+        return None
+
+
+def mirror_release_assets(tag: str) -> dict[str, str]:
+    release = find_mirror_release(tag) or {}
+    return {asset["name"]: asset.get("digest") or "" for asset in release.get("assets", [])}
 
 
 def ensure_release(tag: str, title: str, body: str) -> None:
-    try:
-        api_json(f"repos/{MIRROR_SLUG}/releases/tags/{tag}")
+    if find_mirror_release(tag) is not None:
         return
-    except SyncError:
-        pass
     print(f"Creating mirror release {tag}", flush=True)
     gh(
         "api",
@@ -251,7 +254,7 @@ def ensure_release(tag: str, title: str, body: str) -> None:
 
 def upload_asset(tag: str, path: Path) -> None:
     print(f"+ gh release upload {tag} {path.name}", flush=True)
-    gh("release", "upload", tag, str(path), "--clobber", "-R", MIRROR_SLUG)
+    gh("release", "upload", tag, str(path), "-R", MIRROR_SLUG)
 
 
 def reusable(pin: dict, source_tag: str, commit: str, mirror_tag: str) -> bool:
@@ -259,20 +262,25 @@ def reusable(pin: dict, source_tag: str, commit: str, mirror_tag: str) -> bool:
         return False
     if pin.get("source_tag") != source_tag or pin.get("wrapper_commit") != commit:
         return False
-    assets = pin.get("assets") or {}
-    sizes = mirror_release_assets(mirror_tag)
+    assets = pin.get("assets")
+    core = pin.get("core")
+    arches = core.get("architectures") if isinstance(core, dict) else None
+    if (not isinstance(arches, list) or not arches or any(arch not in ARCHES for arch in arches)
+            or not isinstance(assets, dict) or set(assets) != {"doona", *(asset_key("honk", arch) for arch in arches)}):
+        return False
+    digests = mirror_release_assets(mirror_tag)
     for asset in assets.values():
-        if sizes.get(asset["name"]) != asset.get("size"):
+        if (not isinstance(asset, dict) or not isinstance(asset.get("name"), str)
+                or not isinstance(asset.get("sha256"), str) or not re.fullmatch(r"[0-9a-f]{64}", asset["sha256"])
+                or digests.get(asset["name"]) != f"sha256:{asset['sha256']}"):
             return False
-    return bool(assets)
+    return True
 
 
-def sync(source: dict) -> dict:
-    path = ROOT / source["path"]
+def sync(source: dict, *, root: Path | None = None) -> dict:
+    path = (root if root is not None else ROOT) / source["path"]
     release = latest_wrapper_release()
     tag = release["tag_name"]
-    if not WRAPPER_TAG_RE.fullmatch(tag):
-        raise SyncError(f"Unexpected wrapper release tag: {tag}")
     commit = resolve_commit(tag)
     manifest = release_manifest(tag, commit)
     source_tag = manifest["source_tag"]
@@ -398,9 +406,12 @@ def sync(source: dict) -> dict:
             "Assets are the hash-locked inputs for the OpenWrt honk / luci-app-honk "
             "packages in this repository.",
         )
-        existing_sizes = mirror_release_assets(mirror_tag)
+        existing = mirror_release_assets(mirror_tag)
         for asset in assets.values():
-            if existing_sizes.get(asset["name"]) != asset["size"]:
+            if asset["name"] in existing and existing[asset["name"]] != f"sha256:{asset['sha256']}":
+                raise SyncError(f"Refusing to overwrite {mirror_tag}/{asset['name']}: remote digest differs or is missing")
+        for asset in assets.values():
+            if asset["name"] not in existing:
                 upload_asset(mirror_tag, assets_dir / asset["name"])
 
         for name, destination in (

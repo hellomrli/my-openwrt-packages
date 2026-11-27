@@ -38,4 +38,4 @@
 | `gxmobile-scan` / `luci-app-gxmobile` | x86_64 IPTV 扫描后端与 LuCI | 配套安装，需自己的运营商网关 |
 | `adguardhome-dual` | 独立双 ADH 包 | 当前 master 不使用；默认无认证 LAN Web 与当前 overlay 方案不同 |
 
-本地目录不在 `sources.json` 中，自动同步不覆盖。版本以对应 Makefile、源码清单和 Release 为准，不把历史验证数量视为当前服务可用性证明。
+扫描后端与 LuCI 由 `sources.json` 的 `gxmobile` 条目从同一个固件提交成对导出；另两个组件不参与自动同步。版本以对应 Makefile、源码清单和 Release 为准。

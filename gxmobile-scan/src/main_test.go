@@ -97,6 +97,83 @@ func TestReportPublishedAfterCurrentScan(t *testing.T) {
 	}
 }
 
+func TestRefreshWebPlaylistUsesCurrentGateway(t *testing.T) {
+	base := setup(t)
+	gateway = "http://old.invalid:8080"
+	base.Gateway = gateway
+	base.Updated = "2026-01-02T03:04:05Z"
+	winner := 1
+	base.Channels[0].LastWinner = &winner
+	base.Channels[0].Sources = append(base.Channels[0].Sources, Source{Cid: 2, H: 1080, Kbps: 3.1})
+	if err := refreshWebPlaylist(base); err != nil {
+		t.Fatal(err)
+	}
+	before, err := json.Marshal(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(baselinePath, before, 0644); err != nil {
+		t.Fatal(err)
+	}
+	report := []byte("previous scan report")
+	if err := os.WriteFile(filepath.Join(outDir, "扫描报告.txt"), report, 0644); err != nil {
+		t.Fatal(err)
+	}
+	// No server is listening here: startup must not probe or scan the gateway.
+	gateway = "http://new.invalid:8080"
+	if err := refreshWebPlaylist(base); err != nil {
+		t.Fatal(err)
+	}
+	for _, directory := range []string{outDir, publishDir} {
+		data, err := os.ReadFile(filepath.Join(directory, "广西移动IPTV_去重版.m3u"))
+		if err != nil || strings.Contains(string(data), "old.invalid") ||
+			!strings.Contains(string(data), "\n"+gateway+"/1/index.m3u8?servicetype=1\n") {
+			t.Fatalf("stale gateway or winner in %s: %s (%v)", directory, data, err)
+		}
+		data, err = os.ReadFile(filepath.Join(directory, "扫描报告.txt"))
+		if err != nil || string(data) != string(report) {
+			t.Fatalf("scan report changed: %s (%v)", data, err)
+		}
+	}
+	after, err := os.ReadFile(baselinePath)
+	if err != nil || string(after) != string(before) {
+		t.Fatalf("persisted baseline changed during startup: %s (%v)", after, err)
+	}
+	if base.Updated != "2026-01-02T03:04:05Z" || *base.Channels[0].LastWinner != 1 || !state.LastRun.IsZero() {
+		t.Fatal("startup changed scan metadata or the stable winner")
+	}
+}
+
+func TestRefreshWebPlaylistWithoutPublishing(t *testing.T) {
+	base := setup(t)
+	publishDir = ""
+	if err := refreshWebPlaylist(base); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(outDir, "广西移动IPTV_去重版.m3u")); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRefreshWebPlaylistReportsWriteAndPublishFailures(t *testing.T) {
+	for _, failPublish := range []bool{false, true} {
+		t.Run(fmt.Sprint(failPublish), func(t *testing.T) {
+			base := setup(t)
+			if failPublish {
+				publishDir = filepath.Join(outDir, "not-a-directory")
+				if err := os.WriteFile(publishDir, []byte("keep"), 0644); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				outDir = filepath.Join(outDir, "missing")
+			}
+			if err := refreshWebPlaylist(base); err == nil {
+				t.Fatal("startup write failure was ignored")
+			}
+		})
+	}
+}
+
 func TestKernelLockCanBeReacquired(t *testing.T) {
 	setup(t)
 	unlock := acquireLock()

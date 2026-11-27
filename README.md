@@ -23,7 +23,7 @@ make menuconfig
 - 当前 [my-ImmortalWrt](https://github.com/hellomrli/my-ImmortalWrt) 的 master/Honk 目标使用 Honk、Lucky、Watchdog 等指定目录。
 - dae/daed、OpenClash、Passwall、MosDNS 等目录继续保留，是否使用由自己的构建配置决定。
 - Honk 按上游正式 Release 同步，wrapper、核心、Doona 和摘要相互绑定，资源重新镜像到本仓库 Release。
-- `gxmobile-scan`、`luci-app-gxmobile`、`luci-app-iptv-catchup` 与 `adguardhome-dual` 是本地维护或导出的组件，不加入自动同步清单。
+- `gxmobile-scan` 和 `luci-app-gxmobile` 从固件仓库同一提交自动导出。`luci-app-iptv-catchup` 与 `adguardhome-dual` 不参与自动同步。
 
 自动同步每 6 小时运行，更新源码不会直接触发固件重编。实际来源、commit 和覆盖文件见 [SYNCED_SOURCES.md](SYNCED_SOURCES.md)。
 
@@ -34,7 +34,7 @@ make menuconfig
 - [抽取包、固定版本与固件集成](docs/integration.md)
 - [同步、覆盖和故障处理](docs/maintenance.md)
 - [IPTV 回放 APK 安装](docs/catchup-install.md)
-- [IPTV 扫描界面](luci-app-gxmobile/README.md) · [扫描后端](gxmobile-scan/README.md)
+- [IPTV 扫描界面](docs/gxmobile.md) · [扫描后端](gxmobile-scan/README.md)
 
 ## 来源、反馈与许可
 

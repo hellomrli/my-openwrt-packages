@@ -20,7 +20,9 @@ function checked(result) {
 	return result;
 }
 
-function notify(error) { ui.addNotification(null, E('p', {}, error.message || String(error)), 'error'); }
+// LuCI treats scalar children as HTML; arrays create text nodes instead.
+function text(value) { return E('span', {}, [String(value)]); }
+function notify(error) { ui.addNotification(null, E('p', {}, [error.message || String(error)]), 'error'); }
 
 return view.extend({
 	load: function() {
@@ -87,7 +89,7 @@ return view.extend({
 
 	remove: function(channel) {
 		ui.showModal('删除频道', [
-			E('p', {}, '删除「' + channel.name + '」？下次扫描发现相同 CID 时，会作为新频道重新加入。'),
+			E('p', {}, ['删除「' + channel.name + '」？下次扫描发现相同 CID 时，会作为新频道重新加入。']),
 			E('div', { 'class': 'right' }, [
 				E('button', { 'class': 'btn', 'click': ui.hideModal }, '取消'), ' ',
 				E('button', { 'class': 'btn cbi-button-negative', 'click': ui.createHandlerFn(this, function() {
@@ -100,13 +102,13 @@ return view.extend({
 	updateChannels: function() {
 		var search = this.search.value.trim().toLowerCase(), group = this.group.value;
 		var groups = Array.from(new Set(this.channels.map(function(c) { return c.group; }))).sort();
-		dom.content(this.group, [E('option', { value: '' }, '全部分组')].concat(groups.map(function(g) { return E('option', { value: g }, g); })));
+		dom.content(this.group, [E('option', { value: '' }, '全部分组')].concat(groups.map(function(g) { return E('option', { value: g }, [g]); })));
 		this.group.value = groups.indexOf(group) >= 0 ? group : '';
 		var rows = this.channels.filter(function(c) {
 			return (!group || c.group == group) && (!search || c.name.toLowerCase().indexOf(search) >= 0 || String(c.winner).indexOf(search) >= 0);
 		}).map(function(c) {
-			var link = /^https?:\/\//.test(c.url || '') ? E('a', { href: c.url, target: '_blank', rel: 'noopener noreferrer' }, String(c.winner)) : '—';
-			return [c.name, c.group, link, c.tag || '—', c.live + ' / ' + c.gone,
+			var link = /^https?:\/\//.test(c.url || '') ? E('a', { href: c.url, target: '_blank', rel: 'noopener noreferrer' }, [String(c.winner)]) : '—';
+			return [text(c.name), text(c.group), link, text(c.tag || '—'), text(c.live + ' / ' + c.gone),
 				E('div', { style: 'white-space:nowrap' }, [
 					E('button', { 'class': 'btn cbi-button-edit', disabled: !this.writable || !!this.status.running, click: this.edit.bind(this, c) }, '编辑'), ' ',
 					E('button', { 'class': 'btn cbi-button-remove', disabled: !this.writable || !!this.status.running, click: this.remove.bind(this, c) }, '删除')
@@ -167,7 +169,7 @@ return view.extend({
 		this.group = E('select', { 'class': 'cbi-input-select', change: this.updateChannels.bind(this) });
 		this.table = E('table', { 'class': 'table cbi-section-table' }, [E('tr', { 'class': 'tr table-titles' },
 			['频道名称', '分组', '主信号 CID', '画质 / 码率', '在线 / 失效源', '操作'].map(function(title) { return E('th', { 'class': 'th' }, title); }))]);
-		this.report = E('pre', { style: 'white-space:pre-wrap;max-height:24em;overflow:auto' }, data[3].report || '尚无扫描报告');
+		this.report = E('pre', { style: 'white-space:pre-wrap;max-height:24em;overflow:auto' }, [data[3].report || '尚无扫描报告']);
 		var playlist = window.location.origin + '/gxmobile/' + encodeURIComponent('广西移动IPTV_去重版.m3u');
 		var cards = [['state', '任务状态'], ['channels', '频道数'], ['sources', '在线信号源'], ['diff', '新增 / 消失'], ['updated', '最近更新']].map(function(item) {
 			this.cards[item[0]] = E('strong', { style: 'display:block;font-size:1.2em;margin-top:.4em' }, '—');

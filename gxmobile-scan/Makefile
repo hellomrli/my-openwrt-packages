@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=gxmobile-scan
 PKG_VERSION:=1.2.0
-PKG_RELEASE:=2
+PKG_RELEASE:=3
 PKG_LICENSE:=MIT
 PKG_BUILD_DEPENDS:=golang/host
 PKG_BUILD_PARALLEL:=1
