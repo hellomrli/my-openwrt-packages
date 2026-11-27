@@ -30,20 +30,20 @@ const callRestart = rpc.declare({ object: 'honk', method: 'restart', expect: { '
 const callSettings = rpc.declare({
 	object: 'honk',
 	method: 'settings',
-	params: [ 'lan_network', 'listen_port', 'clash_api_enabled', 'clash_api_port', 'clash_api_secret' ],
+	params: [ 'lan_network', 'lan_device', 'listen_host', 'listen_port', 'clash_api_enabled', 'clash_host', 'clash_api_port', 'clash_api_secret', 'clash_api_secret_mode', 'expect_sha256' ],
 	expect: { '': {} }
 });
 
 const callProbeSubscription = rpc.declare({
 	object: 'honk',
 	method: 'probe_subscription',
-	params: [ 'url' ],
+	params: [ 'url', 'ua' ],
 	expect: { '': {} }
 });
 const callAddSubscription = rpc.declare({
 	object: 'honk',
 	method: 'add_subscription',
-	params: [ 'name', 'url' ],
+	params: [ 'name', 'url', 'ua', 'interval' ],
 	expect: { '': {} }
 });
 const callAddNodes = rpc.declare({
@@ -67,7 +67,24 @@ const callConfigDraftRead = rpc.declare({
 const callLanCandidates = rpc.declare({ object: 'honk', method: 'lan_candidates', expect: { '': {} } });
 const callConfigValidate = rpc.declare({ object: 'honk', method: 'config_validate', params: [ 'content' ], expect: { '': {} } });
 const callConfigSave = rpc.declare({ object: 'honk', method: 'config_save', params: [ 'content' ], expect: { '': {} } });
+const callSystemRead = rpc.declare({
+	object: 'honk', method: 'system_read', expect: { }
+});
+
+const callSystemSave = rpc.declare({
+	object: 'honk', method: 'system_save', params: [ 'content' ], expect: { }
+});
+
+const callSystemPanel = rpc.declare({
+	object: 'honk', method: 'system_panel', params: [ 'dry_run', 'expect', 'base' ], expect: { }
+});
+
 const callConfigApply = rpc.declare({ object: 'honk', method: 'config_apply', expect: { '': {} } });
+const callConfigMergePreview = rpc.declare({ object: 'honk', method: 'config_merge_preview', expect: { '': {} } });
+const callConfigMergeApply = rpc.declare({
+	object: 'honk', method: 'config_merge_apply',
+	params: [ 'config_sha256', 'system_sha256', 'candidate_sha256' ], expect: { '': {} }
+});
 const callConfigDetach = rpc.declare({ object: 'honk', method: 'config_detach', params: [ 'dry_run' ], expect: { '': {} } });
 const callRepair = rpc.declare({ object: 'honk', method: 'repair', expect: { '': {} } });
 const callRecover = rpc.declare({ object: 'honk', method: 'recover', expect: { '': {} } });
@@ -75,7 +92,7 @@ const callBackup = rpc.declare({ object: 'honk', method: 'backup', expect: { '':
 const callRestore = rpc.declare({ object: 'honk', method: 'restore', expect: { '': {} } });
 const callRestorePrepare = rpc.declare({ object: 'honk', method: 'restore_prepare', expect: { '': {} } });
 const callResetAdmin = rpc.declare({ object: 'honk', method: 'reset_admin', expect: { '': {} } });
-const callReset = rpc.declare({ object: 'honk', method: 'reset', expect: { '': {} } });
+const callReset = rpc.declare({ object: 'honk', method: 'reset', params: [ 'lan_device', 'lan_ip' ], expect: { '': {} } });
 const callJobStatus = rpc.declare({
 	object: 'honk',
 	method: 'job_status',
@@ -241,10 +258,11 @@ function localClashUi(status, secret) {
 		const query = [
 			'host=' + encodeURIComponent(host),
 			'hostname=' + encodeURIComponent(host),
-			'port=' + encodeURIComponent(port),
-			'secret=' + encodeURIComponent(secret || '')
-		].join('&');
-		return base + '?' + query + '#/proxies';
+			'port=' + encodeURIComponent(port)
+		];
+		if (typeof secret === 'string')
+			query.push('secret=' + encodeURIComponent(secret));
+		return base + '?' + query.join('&') + '#/proxies';
 	}
 	catch (e) {
 		return null;
@@ -266,6 +284,26 @@ function tokenMessage(token) {
 		settings_saved: _('Settings saved and applied.'),
 		initialized: _('Honk initialized.'),
 		administrator_initialized: _('Honk initialized.'),
+		config_valid: _('Configuration is valid. No file was rewritten.'),
+		config_invalid: _('Configuration validation failed. Check the service logs.'),
+		default_config_unavailable: _('The installed default template is missing. Reinstall Honk.'),
+		main_config_backup_failed: _('Could not back up config.dae. No configuration was replaced.'),
+		main_config_unavailable: _('config.dae is missing or is not a regular file.'),
+		main_config_changed_concurrently: _('config.dae changed during setup. Nothing was overwritten.'),
+		default_config_render_failed: _('Could not prepare the first setup configuration.'),
+		candidate_config_invalid: _('The first setup configuration could not be validated or started.'),
+		main_config_write_failed: _('Could not install the first setup configuration. Check the service logs.'),
+		uci_commit_failed_main_restore_pending: _('Could not finish initialization. Check the configuration and service logs.'),
+		runtime_settings_owned_by_file: _('LAN and API settings are managed in the configuration file.'),
+		configuration_page_merge_preview_required: _('Preview the merge on the configuration page.'),
+		custom_config_requires_configuration_page: _('This file has been customized. Use the configuration page instead of the first setup wizard.'),
+		nfqueue_runtime_unavailable: _('Update the Honk core together with this package. Its configuration diagnostics are incomplete.'),
+	state_database_corrupt: _('状态数据库损坏，请到维护页执行重置后重新初始化。'),
+		config_merge_not_applicable: _('This layout cannot be merged automatically. Keep editing the existing files.'),
+		config_merge_validation_failed: _('The merged configuration did not pass validation. The existing files were kept.'),
+		config_merge_source_changed: _('A source file changed. Refresh the merge preview.'),
+		config_merge_preview_changed: _('The merged candidate changed. Refresh the preview.'),
+		system_config_not_included: _('The active configuration no longer uses system.dae. Edit config.dae instead.'),
 		system_config_healthy: _('System check passed.'),
 		system_config_repaired: _('Repair completed.'),
 		backup_created: _('Backup created.'),
@@ -309,6 +347,8 @@ function tokenMessage(token) {
 		share_links_too_large: _('Share links exceed the 16 KiB per request limit.'),
 		share_links_invalid_or_conflicting: _('A share link is invalid or conflicts with an existing node. Review the input and try again.'),
 		subscription_invalid: _('The subscription could not be added: the name must be 1-64 characters without single quotes, and the URL must be a valid http(s) link.'),
+		subscription_ua_invalid: _('The User-Agent contains characters that cannot be stored. Keep it under 200 printable ASCII characters.'),
+		subscription_interval_invalid: _('The update interval must be a whole number of days.'),
 		subscription_invalid_or_conflicting: _('The subscription is invalid or its name already exists.'),
 		subscription_no_nodes: _('The subscription returned no usable nodes. The configuration was not changed.'),
 		subscription_added: _('Subscription saved with usable nodes.'),
@@ -333,6 +373,7 @@ function tokenMessage(token) {
 		upload_target_unavailable: _('The temporary configuration upload is unavailable. Try again.'),
 		config_too_large: _('The configuration file exceeds the 2 MiB limit.'),
 		config_applied: _('Configuration applied and Honk is running.'),
+		config_applied_secrets_moved: _('Configuration applied and Honk is running. The listener secret moved to secrets.dae.'),
 		config_apply_failed_rolled_back: _('Honk could not start with this configuration. The previous file was restored.'),
 		config_apply_rollback_failed: _('Startup failed and the automatic rollback did not finish. The snapshot was kept; run system recovery.'),
 		config_changed_concurrently: _('The configuration changed during the operation. Nothing was applied.'),
@@ -397,7 +438,7 @@ function tokenMessage(token) {
 		boot_link_update_and_rollback_failed_snapshot_retained: _('更新开机自启链接失败且回滚未完成，快照已保留。'),
 		repair_restart_failed_rolled_back: _('修复后重启失败，已回滚。'),
 		repair_restart_and_rollback_failed_snapshot_retained: _('修复后重启失败且回滚未完成，快照已保留。'),
-		subscription_unreachable: _('抓不到这个订阅地址：网络不通、需要代理，或链接已失效。'),
+		subscription_unreachable: _('抓不到这个订阅地址：网络不通、需要代理、链接已失效，或机场校验 User-Agent。'),
 		subscription_empty: _('订阅内容是空的。'),
 		subscription_too_large: _('订阅内容超过 4 MiB，拒绝处理。'),
 		configuration_validation_failed: _('配置没有通过静态校验。'),
@@ -464,6 +505,12 @@ function tokenMessage(token) {
 
 function statusIssue(token) {
 	/* 内核模块检查会带上具体模块名，按前缀拆开再填进文案 */
+	if (typeof token === 'string' && token.indexOf('geo_asset_') === 0) {
+		const parts = token.split(':'), name = parts[1] || 'geo';
+		return parts[0] === 'geo_asset_truncated'
+			? _('The %s data file is incomplete (under 4 MiB). Download it again from Maintenance → Geo data.').format(name)
+			: _('The %s data file is missing. Download it from Maintenance → Geo data.').format(name);
+	}
 	if (typeof token === 'string' && token.indexOf('kernel_module_missing:') === 0)
 		return _('缺少内核模块 %s，请确认 kmod-sched-core / kmod-sched-bpf / kmod-veth / kmod-nft-queue 已安装。').format(token.slice('kernel_module_missing:'.length));
 
@@ -555,7 +602,15 @@ return baseclass.extend({
 	start: callStart,
 	stop: callStop,
 	restart: callRestart,
-	settings: callSettings,
+	settings: function(opts) {
+		/* rpc.declare 按位置传参，这里统一收口，避免调用处参数错位。 */
+		opts = opts || {};
+		return callSettings(
+			opts.lan_network, opts.lan_device, opts.listen_host, opts.listen_port,
+			opts.clash_api_enabled, opts.clash_host, opts.clash_api_port,
+			opts.clash_api_secret, opts.clash_api_secret_mode, opts.expect_sha256
+		);
+	},
 	probeSubscription: callProbeSubscription,
 	addSubscription: callAddSubscription,
 	addNodes: callAddNodes,
@@ -565,7 +620,12 @@ return baseclass.extend({
 	lanCandidates: callLanCandidates,
 	configValidate: callConfigValidate,
 	configSave: callConfigSave,
+	systemRead: callSystemRead,
+	systemSave: callSystemSave,
+	systemPanel: callSystemPanel,
 	configApply: callConfigApply,
+	configMergePreview: callConfigMergePreview,
+	configMergeApply: callConfigMergeApply,
 	configDetach: callConfigDetach,
 	repair: callRepair,
 	recover: callRecover,

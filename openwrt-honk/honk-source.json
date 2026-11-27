@@ -1,15 +1,15 @@
 {
   "format": 1,
   "upstream": "https://github.com/kenzok8/openwrt-honk.git",
-  "upstream_release": "v2026.11.12-r43231019397",
-  "source_tag": "source-42975766273",
-  "wrapper_commit": "34d0590178ca2509acbd222018f65e978328b015",
+  "upstream_release": "v2026.11.26",
+  "source_tag": "source-45789344596",
+  "wrapper_commit": "2bfaed128096695dab1b4cb8bd2f700e0e9912e8",
   "mirror_repository": "https://github.com/hellomrli/my-openwrt-packages.git",
-  "mirror_release": "honk-source-42975766273",
-  "release_url": "https://github.com/hellomrli/my-openwrt-packages/releases/download/honk-source-42975766273",
+  "mirror_release": "honk-source-45789344596",
+  "release_url": "https://github.com/hellomrli/my-openwrt-packages/releases/download/honk-source-45789344596",
   "core": {
     "repository": "https://github.com/daeuniverse/honk.git",
-    "commit": "64848881b7304e250e7a25422f4f1d86a5975eca",
+    "commit": "f7415d0ac505e330cf22bda562719d396e6b9a26",
     "version": "0.1.0",
     "features": "clash-api,ebpf,rprx,native-api",
     "architectures": [
@@ -20,24 +20,24 @@
   },
   "assets": {
     "honk_x86_64": {
-      "name": "honk-core-64848881b7304e250e7a25422f4f1d86a5975eca-x86_64.tar.gz",
-      "sha256": "d8b779a60fbe4965d323bcab187924f5c28745509318bf54c853cbd71d9e540a",
-      "size": 13025237
+      "name": "honk-core-f7415d0ac505e330cf22bda562719d396e6b9a26-x86_64.tar.gz",
+      "sha256": "4993f719bddfcb4974168101b0ce6276b47d6245e382bdbcd49b27b6b77eb852",
+      "size": 13517070
     },
     "honk_aarch64": {
-      "name": "honk-core-64848881b7304e250e7a25422f4f1d86a5975eca-aarch64.tar.gz",
-      "sha256": "27df7fbab0e3fb15cb3171d1f74d387f815ecc7c53f96256af11dcc6618da047",
-      "size": 12289336
+      "name": "honk-core-f7415d0ac505e330cf22bda562719d396e6b9a26-aarch64.tar.gz",
+      "sha256": "03dc59e590f55a5758b7e4af900e2bf3ef3e2f3146aa93bba6c63c448750c584",
+      "size": 12753362
     },
     "honk_armv7": {
-      "name": "honk-core-64848881b7304e250e7a25422f4f1d86a5975eca-armv7.tar.gz",
-      "sha256": "44cbb9a75054c14b97f98849a70aa32fd87b9d4ef7116c6e790315d0adee7766",
-      "size": 12637712
+      "name": "honk-core-f7415d0ac505e330cf22bda562719d396e6b9a26-armv7.tar.gz",
+      "sha256": "699907e905759e96ee91ae2adc4eaefab1e72ee731236a0e932e26e861e7b17c",
+      "size": 13128567
     },
     "doona": {
-      "name": "doona-9dcb9489-355f3716f059.tar.gz",
-      "sha256": "355f3716f059904ea5a74969e46af59cf282253101fb7cb27a778a2c620c32de",
-      "size": 1331422
+      "name": "doona-0ed10b68-2225c5fbd9a3.tar.gz",
+      "sha256": "2225c5fbd9a3c7e6b8e900a41b03e2bede9093f12a3193441fa68cc4b29326a9",
+      "size": 1353447
     }
   }
 }

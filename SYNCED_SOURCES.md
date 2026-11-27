@@ -1,23 +1,23 @@
 # Synced Sources
 
-Last sync: `2026-11-27 11:14:05 UTC`
+Last sync: `2026-11-27 12:53:31 UTC`
 
 | Package | Path | Branch | Commit | Upstream |
 |---------|------|--------|--------|----------|
-| luci-app-lucky | `luci-app-lucky` | `main` | `b07f65c28bb5` | https://github.com/gdy666/luci-app-lucky.git |
-| luci-app-watchdog | `luci-app-watchdog` | `main` | `4c0ad625c738` | https://github.com/sirpdboy/luci-app-watchdog.git |
-| OpenClash | `openclash` | `master` | `e553e82e01c6` | https://github.com/vernesong/OpenClash.git |
-| openwrt-daede | `openwrt-daede` | `main` | `11785dbd56c1` | https://github.com/kenzok8/openwrt-daede.git |
-| luci-app-adguardhome | `luci-app-adguardhome` | `master` | `37fdf502b993` | https://github.com/rufengsuixing/luci-app-adguardhome.git |
-| luci-app-mosdns | `luci-app-mosdns` | `v5` | `a8a6caffe041` | https://github.com/sbwml/luci-app-mosdns.git |
-| openwrt-passwall | `openwrt-passwall` | `main` | `bc622894605a` | https://github.com/Openwrt-Passwall/openwrt-passwall.git |
-| openwrt-passwall2 | `openwrt-passwall2` | `main` | `8900ebcb1dae` | https://github.com/Openwrt-Passwall/openwrt-passwall2.git |
-| luci-app-vlmcsd | `luci-app-vlmcsd` | `master` | `530a6ee0f075` | https://github.com/mchome/luci-app-vlmcsd.git |
-| luci-app-smartdns | `luci-app-smartdns` | `master` | `8f0c70281189` | https://github.com/pymumu/luci-app-smartdns.git |
-| golang | `golang` | `27.x` | `a7942fbbc78a` | https://github.com/sbwml/packages_lang_golang.git |
-| openwrt-honk | `openwrt-honk` | `v2026.11.12-r43231019397` | `34d0590178ca` | https://github.com/kenzok8/openwrt-honk.git |
-| gxmobile-scan | `gxmobile-scan` | `main` | `8973543ed443375b22fece7cb4f359fa02e6c31a` | https://github.com/hellomrli/my-ImmortalWrt.git |
-| luci-app-gxmobile | `luci-app-gxmobile` | `main` | `8973543ed443375b22fece7cb4f359fa02e6c31a` | https://github.com/hellomrli/my-ImmortalWrt.git |
+| luci-app-lucky | `luci-app-lucky` | `main` | `b07f65c28bb5fa3da1fea4b8af5ce24a1488e79a` | https://github.com/gdy666/luci-app-lucky.git |
+| luci-app-watchdog | `luci-app-watchdog` | `main` | `4c0ad625c7385c20e53aca9bcb78fa4ba518991c` | https://github.com/sirpdboy/luci-app-watchdog.git |
+| OpenClash | `openclash` | `master` | `e553e82e01c697aefbe1555261a503f425e00ccd` | https://github.com/vernesong/OpenClash.git |
+| openwrt-daede | `openwrt-daede` | `main` | `7e181da32bf16acd5d8d3939bcae54730d772310` | https://github.com/kenzok8/openwrt-daede.git |
+| luci-app-adguardhome | `luci-app-adguardhome` | `master` | `37fdf502b99328b37c9ef4c4387f069f67253f85` | https://github.com/rufengsuixing/luci-app-adguardhome.git |
+| luci-app-mosdns | `luci-app-mosdns` | `v5` | `a8a6caffe04167dbb17407a63463eb4ce7243873` | https://github.com/sbwml/luci-app-mosdns.git |
+| openwrt-passwall | `openwrt-passwall` | `main` | `8f501e6596d347abd868a87065e33f81034defd7` | https://github.com/Openwrt-Passwall/openwrt-passwall.git |
+| openwrt-passwall2 | `openwrt-passwall2` | `main` | `c8c1c67d6f12ea3bf3d05a3b186dffd538955502` | https://github.com/Openwrt-Passwall/openwrt-passwall2.git |
+| luci-app-vlmcsd | `luci-app-vlmcsd` | `master` | `530a6ee0f07522c9540dc09c7559f0486c4c4288` | https://github.com/mchome/luci-app-vlmcsd.git |
+| luci-app-smartdns | `luci-app-smartdns` | `master` | `8f0c70281189fbdc1cd102bc134c1f6cac3a4640` | https://github.com/pymumu/luci-app-smartdns.git |
+| golang | `golang` | `27.x` | `a7942fbbc78a482c32b71bfee659d2327570ea33` | https://github.com/sbwml/packages_lang_golang.git |
+| openwrt-honk | `openwrt-honk` | `v2026.11.26` | `2bfaed128096695dab1b4cb8bd2f700e0e9912e8` | https://github.com/kenzok8/openwrt-honk.git |
+| gxmobile-scan | `gxmobile-scan` | `main` | `4e530897983c61c198b095de7465c5e2fc51b2c2` | https://github.com/hellomrli/my-ImmortalWrt.git |
+| luci-app-gxmobile | `luci-app-gxmobile` | `main` | `4e530897983c61c198b095de7465c5e2fc51b2c2` | https://github.com/hellomrli/my-ImmortalWrt.git |
 
 Overridden after sync (see `overrides/README.md`):
 

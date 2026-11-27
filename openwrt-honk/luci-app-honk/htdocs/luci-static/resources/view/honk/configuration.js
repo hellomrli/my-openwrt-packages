@@ -138,11 +138,58 @@ return view.extend({
 		const subStatus = E('p', { 'class': 'honk-note', 'role': 'status', 'aria-live': 'polite' }, '');
 		const nameInput = E('input', {
 			'class': 'cbi-input-text', 'name': 'sub_name',
-			'placeholder': _('Name, e.g. MyAirport'), 'maxlength': '256'
+			'placeholder': _('Subscription name, e.g. MyAirport'), 'maxlength': '256'
 		});
 		const urlInput = E('input', {
 			'class': 'cbi-input-text', 'name': 'sub_url',
 			'placeholder': 'https://…', 'inputmode': 'url'
+		});
+		/* 下拉选常见 UA；要机场给的原串就选「自定义」。留空 = 核心自己的 honk/<版本>，
+		   版本号拿到后把标签补全，拿不到就显示 honk/*。 */
+		const uaDefaultOption = E('option', { 'value': '' }, [ 'honk/*' ]);
+		const uaSelect = E('select', { 'class': 'cbi-input-select', 'name': 'sub_ua' }, [
+			uaDefaultOption,
+			E('option', { 'value': 'ClashMeta' }, [ 'ClashMeta' ]),
+			E('option', { 'value': 'mihomo' }, [ 'mihomo' ]),
+			E('option', { 'value': 'Clash' }, [ 'Clash' ]),
+			E('option', { 'value': 'Mozilla/5.0' }, _('Browser User-Agent')),
+			E('option', { 'value': '__custom__' }, _('Custom…'))
+		]);
+		const uaCustom = E('input', {
+			'class': 'cbi-input-text', 'maxlength': '200', 'hidden': 'hidden',
+			'placeholder': _('User-Agent the provider asks for')
+		});
+		/* 提交时只看当前选中的是哪个，自定义框里残留的内容不参与。 */
+		function subscriptionUa() {
+			return uaSelect.value === '__custom__' ? uaCustom.value.trim() : uaSelect.value;
+		}
+		uaSelect.addEventListener('change', function() {
+			if (uaSelect.value === '__custom__')
+				uaCustom.removeAttribute('hidden');
+			else
+				uaCustom.setAttribute('hidden', 'hidden');
+		});
+		/* 自动更新：常用周期直接选，怪的值走自定义天数。 */
+		const intervalSelect = E('select', { 'class': 'cbi-input-select', 'name': 'sub_interval' }, [
+			E('option', { 'value': '0' }, _('Off')),
+			E('option', { 'value': '1' }, _('Every day')),
+			E('option', { 'value': '3' }, _('Every 3 days')),
+			E('option', { 'value': '7' }, _('Every 7 days')),
+			E('option', { 'value': '__custom__' }, _('Custom…'))
+		]);
+		intervalSelect.value = '1';
+		const intervalCustom = E('input', {
+			'class': 'cbi-input-text', 'type': 'number', 'min': '0', 'max': '3650', 'step': '1',
+			'hidden': 'hidden', 'placeholder': _('Days')
+		});
+		function subscriptionDays() {
+			return intervalSelect.value === '__custom__' ? intervalCustom.value.trim() : intervalSelect.value;
+		}
+		intervalSelect.addEventListener('change', function() {
+			if (intervalSelect.value === '__custom__')
+				intervalCustom.removeAttribute('hidden');
+			else
+				intervalCustom.setAttribute('hidden', 'hidden');
 		});
 		const subBtn = E('button', { 'class': 'cbi-button cbi-button-apply', 'type': 'button' }, [ _('Add subscription') ]);
 
@@ -150,19 +197,31 @@ return view.extend({
 			ev.preventDefault();
 			const name = nameInput.value.trim();
 			const url = urlInput.value.trim();
-			if (!name) { subStatus.textContent = _('Name is required.'); nameInput.focus(); return; }
+			const ua = subscriptionUa();
+			const days = subscriptionDays();
+			if (!name) { subStatus.textContent = _('Subscription name is required.'); nameInput.focus(); return; }
 			if (!isHttpUrl(url)) { subStatus.textContent = _('A valid HTTP or HTTPS URL is required.'); urlInput.focus(); return; }
+			if (!/^\d+$/.test(days) || +days > 3650) {
+				subStatus.textContent = _('The update interval must be a whole number of days (0 disables scheduled refresh).');
+				(intervalSelect.value === '__custom__' ? intervalCustom : intervalSelect).focus(); return;
+			}
 			subBtn.disabled = true;
-			preflightSubscription(url, subStatus).then(function(proceed) {
+			preflightSubscription(url, ua, subStatus).then(function(proceed) {
 				if (!proceed)
 					return null;
 				subStatus.textContent = _('Adding subscription…');
 				return withLongTimeout(function() {
-					return honk.addSubscription(name, url).then(honk.ensureOk);
+					return honk.addSubscription(name, url, ua, String(+days * 86400)).then(honk.ensureOk);
 				}).then(function(result) {
 					subStatus.textContent = honk.resultMessage(result, _('Subscription saved with usable nodes.'));
 					nameInput.value = '';
 					urlInput.value = '';
+					uaSelect.value = '';
+					uaCustom.value = '';
+					uaCustom.setAttribute('hidden', 'hidden');
+					intervalSelect.value = '1';
+					intervalCustom.value = '';
+					intervalCustom.setAttribute('hidden', 'hidden');
 				}).catch(function(error) {
 					subStatus.textContent = honk.errorMessage(error, _('Could not add the subscription.'));
 				});
@@ -171,14 +230,24 @@ return view.extend({
 
 		nameInput.id = 'honk-sub-name';
 		urlInput.id = 'honk-sub-url';
+		uaSelect.id = 'honk-sub-ua';
+		intervalSelect.id = 'honk-sub-interval';
 		const subSection = E('section', { 'class': 'honk-card' }, [
 			E('div', { 'class': 'honk-form-row' }, [
-				E('label', { 'class': 'honk-form-label', 'for': 'honk-sub-name' }, _('Name')),
+				E('label', { 'class': 'honk-form-label', 'for': 'honk-sub-name' }, _('Subscription name')),
 				E('div', { 'class': 'honk-form-field' }, [ nameInput ])
 			]),
 			E('div', { 'class': 'honk-form-row' }, [
 				E('label', { 'class': 'honk-form-label', 'for': 'honk-sub-url' }, _('Subscription URL')),
 				E('div', { 'class': 'honk-form-field' }, [ urlInput ])
+			]),
+			E('div', { 'class': 'honk-form-row' }, [
+				E('label', { 'class': 'honk-form-label', 'for': 'honk-sub-ua' }, _('User-Agent')),
+				E('div', { 'class': 'honk-form-field' }, [ uaSelect, uaCustom ])
+			]),
+			E('div', { 'class': 'honk-form-row' }, [
+				E('label', { 'class': 'honk-form-label', 'for': 'honk-sub-interval' }, _('Auto update')),
+				E('div', { 'class': 'honk-form-field' }, [ intervalSelect, intervalCustom ])
 			]),
 			E('div', { 'class': 'honk-form-actions' }, [ subBtn ]),
 			subStatus
@@ -194,12 +263,12 @@ return view.extend({
 			});
 		}
 
-		/* honk 内核支持的节点类型（见 core 的 clash.rs protocol_from_name）：
-		   ssr / snell / 带插件的 ss / 小众协议都会被内核判为不支持。 */
+		/* honk 内核支持的节点类型（见 core 的 clash.rs protocol_from_name 与 share_link.rs）：
+		   ssr / snell / 小众协议都会被内核判为不支持。 */
 		const SUPPORTED_PROTOCOLS = {
-			'socks': 1, 'socks5': 1, 'ss': 1, 'shadowsocks': 1, 'trojan': 1,
-			'vmess': 1, 'vless': 1, 'hysteria': 1, 'hysteria2': 1, 'hy2': 1,
-			'tuic': 1, 'juicity': 1, 'anytls': 1
+			'socks': 1, 'socks5': 1, 'socks4': 1, 'socks4a': 1, 'ss': 1, 'shadowsocks': 1,
+			'trojan': 1, 'vmess': 1, 'vless': 1, 'hysteria': 1, 'hysteria2': 1, 'hy2': 1,
+			'tuic': 1, 'juicity': 1, 'anytls': 1, 'masque': 1
 		};
 		/* JSON 订阅里 outbounds 会混进这些非节点类型，不能算作节点。 */
 		const NON_NODE_TYPES = {
@@ -261,9 +330,9 @@ return view.extend({
 
 		/* 保存前预检：能全部用就直接保存；全不可用就拦下；部分可用问一句。
 		   预检本身失败（网络抖动等）不拦保存，退回原来的行为。 */
-		function preflightSubscription(url, status) {
+		function preflightSubscription(url, ua, status) {
 			status.textContent = _('Checking the subscription before saving…');
-			return honk.probeSubscription(url).then(function(probe) {
+			return honk.probeSubscription(url, ua).then(function(probe) {
 				const verdict = analyzeProbe(probe);
 				if (!verdict.total)
 					return true;
@@ -345,6 +414,84 @@ return view.extend({
 		const saveBtn = E('button', { 'class': 'cbi-button cbi-button-positive', 'type': 'button' }, [ _('Save and apply') ]);
 		const draftBtn = E('button', { 'class': 'cbi-button', 'type': 'button' }, [ _('Save draft') ]);
 		const validateBtn = E('button', { 'class': 'cbi-button cbi-button-link', 'type': 'button' }, [ _('Check configuration') ]);
+		const mergeBtn = E('button', { 'class': 'cbi-button', 'type': 'button' }, [ _('Preview merging system.dae') ]);
+		mergeBtn.hidden = true;
+		const mergeNotice = E('div', { 'class': 'alert-message', 'hidden': true }, [
+			E('p', {}, _('This configuration still uses system.dae. Preview a merge or keep editing the existing file.')),
+			E('button', { 'class': 'cbi-button', 'type': 'button', 'click': function() { selectTab('edit'); } }, _('Edit configuration'))
+		]);
+		const legacyBtn = E('button', { 'class': 'cbi-button', 'type': 'button' }, [ _('Edit legacy system.dae') ]);
+		legacyBtn.hidden = true;
+		legacyBtn.addEventListener('click', function() {
+			legacyBtn.disabled = true;
+			honk.systemRead().then(honk.ensureOk).then(function(result) {
+				const content = E('textarea', {
+					'class': 'cbi-input-textarea honk-config-editor', 'rows': '22', 'spellcheck': 'false', 'wrap': 'off'
+				});
+				content.value = result.content || '';
+				const note = E('p', { 'class': 'honk-note', 'role': 'status' }, '');
+				const save = E('button', { 'class': 'cbi-button cbi-button-positive', 'type': 'button' }, _('Save and validate'));
+				save.addEventListener('click', function() {
+					save.disabled = true;
+					withLongTimeout(function() { return honk.systemSave(content.value).then(honk.ensureOk); }).then(function() {
+						ui.hideModal();
+						return loadCurrent(_('system.dae saved.'), false);
+					}).catch(function(error) {
+						note.textContent = honk.errorMessage(error, _('Could not save system.dae.'));
+						save.disabled = false;
+					});
+				});
+				ui.showModal(_('Legacy system.dae'), [
+					E('p', {}, _('This file is still included by the active configuration. Saving validates it and restarts Honk if it is running.')),
+					content, note,
+					E('div', { 'class': 'right' }, [
+						E('button', { 'class': 'cbi-button', 'type': 'button', 'click': ui.hideModal }, _('Cancel')), save
+					])
+				]);
+			}).catch(function(error) {
+				editorStatus.textContent = honk.errorMessage(error, _('Could not read system.dae.'));
+			}).finally(function() { legacyBtn.disabled = false; });
+		});
+		mergeBtn.addEventListener('click', function() {
+			if (!confirmEditorReplace()) return;
+			const editorSnapshot = editor.value;
+			mergeBtn.disabled = true;
+			honk.configMergePreview().then(honk.ensureOk).then(function(preview) {
+				const content = E('textarea', {
+					'class': 'cbi-input-textarea honk-config-editor', 'rows': '22', 'readonly': 'readonly',
+					'spellcheck': 'false', 'wrap': 'off', 'aria-label': _('Merged configuration preview')
+				});
+				content.value = preview.content || '';
+				const apply = E('button', { 'class': 'cbi-button cbi-button-positive', 'type': 'button' }, _('Merge and start Honk'));
+				apply.addEventListener('click', function() {
+					if (editor.value !== editorSnapshot) {
+						ui.hideModal();
+						editorStatus.textContent = _('The editor changed. Preview the merge again.');
+						return;
+					}
+					apply.disabled = true;
+					withLongTimeout(function() {
+						return honk.configMergeApply(preview.config_sha256, preview.system_sha256, preview.candidate_sha256).then(honk.ensureOk);
+					}).then(function(result) {
+						ui.hideModal();
+						return loadCurrent(honk.resultMessage(result, _('Configuration applied.')), true);
+					}).catch(function(error) {
+						ui.hideModal();
+						editorStatus.textContent = honk.errorMessage(error, _('Could not merge the configuration.'));
+					});
+				});
+				ui.showModal(_('Merge configuration'), [
+					E('p', {}, _('This replaces config.dae and starts Honk. system.dae and any existing draft are kept.')),
+					content,
+					E('div', { 'class': 'right' }, [
+						E('button', { 'class': 'cbi-button', 'type': 'button', 'click': ui.hideModal }, _('Cancel')),
+						apply
+					])
+				]);
+			}).catch(function(error) {
+				editorStatus.textContent = honk.errorMessage(error, _('Could not preview the merge.'));
+			}).finally(function() { mergeBtn.disabled = false; });
+		});
 
 		let editorBaseline = '';
 
@@ -390,24 +537,13 @@ return view.extend({
 			}).join(' | ');
 		}
 
-		/* 本机事实：LuCI 的 Doona 端口、活跃 L3 候选（含所属 netifd 网络）。取一次复用。 */
+		/* 接口适配只使用设备事实，不把旧 UCI 向导选项当成运行配置。 */
 		let runtimeFacts = null;
 		function runtimeContext() {
 			if (!runtimeFacts)
-				runtimeFacts = Promise.all([
-					honk.status().catch(function() { return {}; }),
-					honk.lanCandidates().catch(function() { return {}; })
-				]).then(function(results) {
-					const status = results[0] || {};
-					const candidates = ((results[1] && results[1].candidates) || []).filter(function(item) {
-						return item && item.l3_device;
-					});
-					return {
-						listenPort: String(status.listen_port || 9527),
-						lanNetwork: status.lan_network || 'lan',
-						candidates: candidates,
-						devices: candidates.map(function(item) { return item.l3_device; })
-					};
+				runtimeFacts = honk.lanCandidates().catch(function() { return {}; }).then(function(result) {
+					const candidates = (result.candidates || []).filter(function(item) { return item && item.l3_device; });
+					return { candidates: candidates, devices: candidates.map(function(item) { return item.l3_device; }) };
 				});
 			return runtimeFacts;
 		}
@@ -447,7 +583,7 @@ return view.extend({
 
 		/* 优先 netifd 里配置的 LAN 网络；不做「取第一个活跃设备」，那可能是 WAN / VPN。 */
 		function preferredLanDevice(ctx) {
-			const order = [ ctx.lanNetwork, 'lan' ];
+			const order = [ 'lan' ];
 			for (let i = 0; i < order.length; i++) {
 				const hit = ctx.candidates.find(function(item) { return item.network === order[i]; });
 				if (hit)
@@ -651,6 +787,9 @@ return view.extend({
 			return honk.configRead().then(honk.ensureOk).then(function(result) {
 				if (!force && editor.value !== editorBaseline && editor.value !== '')
 					return result;
+				mergeNotice.hidden = !result.legacy_system;
+				mergeBtn.hidden = !result.legacy_system;
+				legacyBtn.hidden = !(result.legacy_system || result.includes_system);
 				setEditorContent(result.content || '', message || _('Current configuration loaded from /etc/honk/config.dae.'));
 				return result;
 			});
@@ -744,7 +883,7 @@ return view.extend({
 		});
 
 		const editorSection = E('section', { 'class': 'honk-card' }, [
-			E('div', { 'class': 'honk-actions' }, [ saveBtn, draftBtn, validateBtn ]),
+			E('div', { 'class': 'honk-actions' }, [ saveBtn, draftBtn, validateBtn, mergeBtn, legacyBtn ]),
 			editor,
 			editorStatus
 		]);
@@ -800,6 +939,12 @@ return view.extend({
 			editorStatus.textContent = honk.errorMessage(error, _('Could not read the saved configuration.'));
 		});
 		renderDraftNote();
+		pollStatus().then(function(status) {
+			/* core_version 是 "honk-core v0.1.0-beta.6" 这种整串，只取版本号。 */
+			const match = /v?([0-9][\w.+-]*)/.exec(String(status && status.core_version || ''));
+			if (match)
+				uaDefaultOption.textContent = 'honk/' + match[1];
+		}).catch(function() { });
 
 		/* 一排标签页，只显示当前板块：四张卡片竖着堆太占屏，也不好一眼看出"有几种做法"。 */
 		const tabs = [
@@ -808,7 +953,7 @@ return view.extend({
 			{ id: 'import', label: _('Import config'), panel: importSection },
 			{ id: 'edit', label: _('Edit config'), panel: editorSection }
 		];
-		let activeTab = 'sub';
+		let activeTab = window.location.hash === '#edit' ? 'edit' : 'sub';
 		const tabBar = E('div', { 'class': 'honk-seg honk-tabs', 'role': 'tablist' });
 		function selectTab(id) {
 			activeTab = id;
@@ -833,6 +978,7 @@ return view.extend({
 			tab.panel.hidden = true;
 			tabBar.appendChild(tab.button);
 		});
+		page.appendChild(mergeNotice);
 		page.appendChild(E('div', { 'class': 'honk-tabs-wrap' }, [ tabBar ]));
 		tabs.forEach(function(tab) { page.appendChild(tab.panel); });
 		selectTab(activeTab);

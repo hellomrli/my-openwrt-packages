@@ -1,7 +1,7 @@
 {
   "core": {
     "repository": "https://github.com/daeuniverse/honk.git",
-    "commit": "64848881b7304e250e7a25422f4f1d86a5975eca",
+    "commit": "f7415d0ac505e330cf22bda562719d396e6b9a26",
     "version": "0.1.0",
     "lane": "stable",
     "features": "clash-api,ebpf,rprx,native-api",
@@ -10,8 +10,8 @@
       "aarch64",
       "armv7"
     ],
-    "configuration_patch_sha256": "bba8804944f7a2d1daac22cc6b70c0a86acb0dea3c911e6fe6dc99201d716ede",
-    "builder_sha256": "d388d6a05506231216122a882d1b3d51261deec75dcf6146db62bd70a73f8a4a"
+    "configuration_patch_sha256": "8ae263b0e3bbc97274a764a999af5bf1eff32c09219a4ef2dfd5da087d69001b",
+    "builder_sha256": "f3a9e2e38ffc71fa3b39e06d44f5f00cd96a0eb146375e670f67b38163ea5b43"
   },
   "bpf_linker": {
     "release_version": "0.11.0",
